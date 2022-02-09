@@ -27,4 +27,6 @@ class RecurrencePlot:
 
 
 if __name__ == "__main__":
-    pass
+    from signals.artificial_signals import Sinusoid
+
+    sinusoid = Sinusoid(frequency=1, sampling_rate=100, sec=2)

@@ -1,10 +1,9 @@
-from typing import Optional
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class Sinusoid:
-    def __init__(self, frequency: float, sampling_rate: int, sec: Optional[int]):
+    def __init__(self, frequency: float, sampling_rate: int, sec: int):
         self._frequency = frequency
         self._sampling_rate = sampling_rate
         self._sec = sec

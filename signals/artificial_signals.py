@@ -13,6 +13,7 @@ class Sinusoid:
         x = np.linspace(start=0, stop=self._sec, num=num_points)
 
         f_x = np.sin(2 * np.pi * self._frequency * x)
+        f_x = f_x.reshape(-1, 1)
 
         if retx:
             return x, f_x

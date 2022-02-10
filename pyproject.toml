@@ -21,6 +21,7 @@ tqdm = "^4.62.3"
 wfdb = "^3.4.1"
 openpyxl = "^3.0.9"
 numba = "^0.55.1"
+pytest = "^7.0.0"
 
 [tool.poetry.dev-dependencies]
 

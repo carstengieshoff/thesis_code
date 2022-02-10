@@ -1295,6 +1295,14 @@ pure-eval = "*"
 tests = ["pytest", "typeguard", "pygments", "littleutils"]
 
 [[package]]
+name = "teaspoon"
+version = "1.2.5"
+description = "A Topological Signal Processing Package"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "terminado"
 version = "0.13.1"
 description = "Tornado websocket backend for the Xterm.js Javascript terminal emulator library."
@@ -1490,7 +1498,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "4d91f5b827dc8782ccc2a3602505f92cf66a4ae1a4889461f2af55c313167d62"
+content-hash = "eb5f45cbd4b9db8e9876c64ada48d33cc24b15591d2d4f9c46a45f76b40392f5"
 
 [metadata.files]
 appdirs = [
@@ -2489,6 +2497,10 @@ six = [
 stack-data = [
     {file = "stack_data-0.1.4-py3-none-any.whl", hash = "sha256:02cc0683cbc445ae4ca8c4e3a0e58cb1df59f252efb0aa016b34804a707cf9bc"},
     {file = "stack_data-0.1.4.tar.gz", hash = "sha256:7769ed2482ce0030e00175dd1bf4ef1e873603b6ab61cd3da443b410e64e9477"},
+]
+teaspoon = [
+    {file = "teaspoon-1.2.5-py3-none-any.whl", hash = "sha256:46769159f2635dcd2a10a3eb0c19dabb258c3e3b7a7ea107d205237c187b2f49"},
+    {file = "teaspoon-1.2.5.tar.gz", hash = "sha256:fa45aa23ea52e6f570df78ea2898cff3e75137678d0210a684e813254173a675"},
 ]
 terminado = [
     {file = "terminado-0.13.1-py3-none-any.whl", hash = "sha256:f446b522b50a7aa68b5def0a02893978fb48cb82298b0ebdae13003c6ee6f198"},

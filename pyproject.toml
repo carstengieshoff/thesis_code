@@ -22,6 +22,7 @@ wfdb = "^3.4.1"
 openpyxl = "^3.0.9"
 numba = "^0.55.1"
 pytest = "^7.0.0"
+teaspoon = "^1.2.5"
 
 [tool.poetry.dev-dependencies]
 

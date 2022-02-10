@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from functools import wraps
 from typing import Any, Callable, Optional
 
 import matplotlib.pyplot as plt
@@ -31,6 +32,9 @@ class ArtificialSignal(ABC):
 
     @staticmethod
     def add_noise(func: Callable[[Any], np.array]) -> Callable[[Any], np.array]:
+        """Add mean zero gaussian noise with to output of wrapped function."""
+
+        @wraps(func)
         def wrapper(self: ArtificialSignal, *args: Any, **kwargs: Any) -> np.array:
             output = func(self, *args, **kwargs)
             if self._noise_rate != 0:

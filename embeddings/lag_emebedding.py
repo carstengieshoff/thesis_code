@@ -5,12 +5,16 @@ from numpy.lib.stride_tricks import sliding_window_view
 
 
 class Embedding(ABC):
+    """Embedding a signal in some different space."""
+
     @abstractmethod
     def embedd(self, signal: np.array) -> np.array:
         pass
 
 
 class LagEmbedding(Embedding):
+    """Embedding a signal by replacing each datapoint by a set of (past) data points."""
+
     def __init__(self, dim: int, lag: int):
         self._dim = dim
         self._lag = lag

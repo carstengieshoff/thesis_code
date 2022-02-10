@@ -20,10 +20,18 @@ class LagEmbedding(Embedding):
         self._dim = dim
         self._lag = lag
 
+        self._min_signal_length = self._dim * self._lag
+
     def embedd(self, signal: np.array) -> np.array:
 
         if len(signal.shape) >= 3:
             raise NotImplementedError("LagEmbedding for 3d signals not yet implemented")
+
+        if signal.shape[0] < self._min_signal_length:
+            raise RuntimeError(
+                f"The signal length has to be at least {self._min_signal_length}, "
+                f"got signal of length {signal.shape[0]}"
+            )
 
         if self._lag == 0 or self._dim == 1:
             return signal

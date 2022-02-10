@@ -1,33 +1,87 @@
+from abc import ABC, abstractmethod
+from typing import Any, Optional
+
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.signal import chirp
 
 
-class Sinusoid:
-    def __init__(self, frequency: float, sampling_rate: int, sec: int):
-        self._frequency = frequency
+class ArtificialSignal(ABC):
+    """Generate an artificial signal."""
+
+    def __init__(self, sampling_rate: int, sec: int):
         self._sampling_rate = sampling_rate
         self._sec = sec
+        self._x = np.linspace(start=0, stop=self._sec, num=self.__len__())
+
+        self._data: Optional[np.array] = None
+
+    @abstractmethod
+    def generate(self) -> np.array:
+        pass
+
+    def show(self, *args: Any, **kwargs: Any) -> None:
+        if self._data is None:
+            self.generate()
+        plt.plot(self._x, self._data, *args, **kwargs)
+        plt.xlabel("Seconds")
+        plt.legend()
+        plt.show()
+
+    @property
+    def data(self) -> np.array:
+        """Generated data."""
+        if self._data is None:
+            raise RuntimeError("`.generate` needs to be run before data can be accessed")
+        return self._data.copy()
+
+    @property
+    def sec(self) -> int:
+        """Length of signal in seconds"""
+        return self._sec
+
+    @property
+    def sampling_rate(self) -> int:
+        """Sampling rate of the signal."""
+        return self._sampling_rate
+
+    def __len__(self) -> int:
+        return self._sec * self._sampling_rate
+
+
+class Sinusoid(ArtificialSignal):
+    """Create Sinusoid."""
+
+    def __init__(self, frequency: float, sampling_rate: int, sec: int):
+        super().__init__(sampling_rate=sampling_rate, sec=sec)
+        self._frequency = frequency
 
     def generate(self, retx: bool = False) -> np.array:
-        num_points = self._sec * self._sampling_rate
-        x = np.linspace(start=0, stop=self._sec, num=num_points)
+        f_x = np.sin(2 * np.pi * self._frequency * self._x)
+        self._data = f_x.reshape(-1, 1)
+        return self._data
 
-        f_x = np.sin(2 * np.pi * self._frequency * x)
-        f_x = f_x.reshape(-1, 1)
+    def show(self, *args: Any, **kwargs: Any) -> None:
+        super().show(label=f"Freq: {self._frequency} Hz", *args, **kwargs)
 
-        if retx:
-            return x, f_x
-        else:
-            return f_x
 
-    def show(self) -> None:
-        x, f_x = self.generate(retx=True)
+class Chirp(ArtificialSignal):
+    """Create Chirp"""
 
-        plt.plot(x, f_x, label=f"Freq: {self._frequency} Hz")
-        plt.xlabel("Seconds")
-        plt.show()
+    def __init__(self, frequency_start: float, frequency_end: float, sampling_rate: int, sec: int):
+        super().__init__(sampling_rate=sampling_rate, sec=sec)
+        self._frequency_start = frequency_start
+        self._frequency_end = frequency_end
+
+    def generate(self, retx: bool = False) -> np.array:
+        f_x = chirp(self._x, f0=self._frequency_start, f1=self._frequency_end, t1=self._sec)
+        self._data = f_x.reshape(-1, 1)
+        return self._data
+
+    def show(self, *args: Any, **kwargs: Any) -> None:
+        super().show(label=f"Freq: {self._frequency_start} Hz -> {self._frequency_end} Hz ", *args, **kwargs)
 
 
 if __name__ == "__main__":
-    sinusoid = Sinusoid(frequency=1, sampling_rate=100, sec=2)
-    sinusoid.show()
+    c = Chirp(frequency_start=1, frequency_end=10, sampling_rate=100, sec=5)
+    c.show()

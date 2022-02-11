@@ -20,11 +20,11 @@ def mutual_information(signal: np.array, mi_type: MI_type = "mean", *args: Any, 
         delays[dim] = MI_for_delay(signal[:, dim], *args, **kwargs)
 
     if mi_type == "mean":
-        return np.round(delays.mean()).item()
+        return np.round(delays.mean()).astype(int).item()
     elif mi_type == "mode":
-        return mode(delays)[0].item()
+        return mode(delays)[0].astype(int).item()
     elif mi_type == "complete":
-        return delays
+        return delays.astype(int)
     else:
         valid_args = [f"`{arg}`" for arg in get_args(MI_type)]
         raise RuntimeError(f"Unknown value `{mi_type}` for `mi_type`, expected one of {', '.join(valid_args)}")

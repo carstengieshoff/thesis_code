@@ -8,10 +8,10 @@ FNN_type = Literal["mean", "mode", "complete"]
 
 
 def fnn(signal: np.array, lag: int, fnn_type: FNN_type = "mean", *args: Any, **kwargs: Any) -> Union[int, np.array]:
-    """Calculating mutual information on each dimension of a (multivariate) signal.
+    """Calculating False Nearest Neighbours on each dimension of a (multivariate) signal.
 
-    For a signal of shape (n_samples, n_dims), `MI_for_delay` from `teaspoon` to each of the n_dims signals of shape
-    (n_samples, 1). The mode and mean of the n_dims returned delays are returned.
+    For a signal of shape (n_samples, n_dims), `FNN_n` from `teaspoon` to each of the n_dims signals of shape
+    (n_samples, 1). The mode and mean of the n_dims dimensions can be returned.
 
     """
     n_dims = signal.shape[1]

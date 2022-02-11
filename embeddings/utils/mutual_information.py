@@ -11,7 +11,7 @@ def mutual_information(signal: np.array, mi_type: MI_type = "mean", *args: Any, 
     """Calculating mutual information on each dimension of a (multivariate) signal.
 
     For a signal of shape (n_samples, n_dims), `MI_for_delay` from `teaspoon` to each of the n_dims signals of shape
-    (n_samples, 1). The mode and mean of the n_dims returned delays are returned.
+    (n_samples, 1). The mode and mean of the n_dims delays can be returned.
 
     """
     n_dims = signal.shape[1]

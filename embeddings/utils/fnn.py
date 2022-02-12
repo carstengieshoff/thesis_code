@@ -20,11 +20,11 @@ def fnn(signal: np.array, lag: int, fnn_type: FNN_type = "mean", *args: Any, **k
         embedding_dims[dim] = FNN_n(signal[:, dim], tau=lag, *args, **kwargs)[1]
 
     if fnn_type == "mean":
-        return np.round(embedding_dims.mean()).item()
+        return np.round(embedding_dims.mean()).astype(int).item()
     elif fnn_type == "mode":
-        return mode(embedding_dims)[0].item()
+        return mode(embedding_dims)[0].astype(int).item()
     elif fnn_type == "complete":
-        return embedding_dims
+        return embedding_dims.astype(int)
     else:
         valid_args = [f"`{arg}`" for arg in get_args(FNN_type)]
         raise RuntimeError(f"Unknown value `{fnn_type}` for `mi_type`, expected one of {', '.join(valid_args)}")

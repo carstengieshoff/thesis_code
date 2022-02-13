@@ -1,4 +1,3 @@
-from itertools import product
 from typing import Any, Callable
 
 import matplotlib.pyplot as plt
@@ -18,8 +17,16 @@ class RecurrencePlot:
         self._recurrence_plot = np.zeros(shape=(self.num_data_points, self.num_data_points))
 
     def generate(self, normalize: bool = True) -> np.array:
-        for i, j in tqdm(product(range(self.num_data_points), range(self.num_data_points))):
-            self._recurrence_plot[i, j] = self.metric(self.embedded_signal[i, :], self.embedded_signal[j, :])
+        """Generating a RP from the provided signal according to the specifications.
+
+        This creates only symmetric unthresholded RPs.
+        """
+        for i in tqdm(range(self.num_data_points), total=self.num_data_points):
+            for j in range(i, self.num_data_points):
+
+                dist = self.metric(self.embedded_signal[i, :], self.embedded_signal[j, :])
+                self._recurrence_plot[i, j] = dist
+                self._recurrence_plot[j, i] = dist
 
         self._recurrence_plot = self._recurrence_plot[::-1, :]
 

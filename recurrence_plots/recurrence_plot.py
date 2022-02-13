@@ -2,7 +2,6 @@ from typing import Any, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
-from numba import jit
 
 from embeddings.lag_emebedding import Embedding
 
@@ -21,9 +20,11 @@ class RecurrencePlot:
 
         This creates only symmetric unthresholded RPs.
         """
-        self._recurrence_plot = calculate_rp(
-            signal=self.embedded_signal, num_data_points=self.num_data_points, metric=self.metric
-        )
+        reshaped_signal = self.embedded_signal.reshape(self.num_data_points, -1)
+
+        for i in range(self.num_data_points):
+            dist = self.metric(reshaped_signal[i, :], reshaped_signal)
+            self._recurrence_plot[:, i] = dist
 
         self._recurrence_plot = self._recurrence_plot[::-1, :]
 
@@ -44,36 +45,24 @@ class RecurrencePlot:
         plt.show()
 
 
-@jit(nopython=True)
-def calculate_rp(signal: np.array, num_data_points: int, metric: Callable[[np.array, np.array], float]) -> np.array:
-    rp = np.zeros(shape=(num_data_points, num_data_points))
-
-    for i in range(num_data_points):
-        for j in range(i, num_data_points):
-            dist = metric(signal[i, :], signal[j, :])
-            rp[i, j] = dist
-            rp[j, i] = dist
-
-    return rp
-
-
 if __name__ == "__main__":
     import time
 
     from embeddings.lag_emebedding import LagEmbedding
     from signals.artificial_signals import Sinusoid
 
-    sinusoid = Sinusoid(frequency=5, sampling_rate=200, sec=5)
+    sinusoid = Sinusoid(frequency=1, sampling_rate=200, sec=5)
     sinusoid_signal = sinusoid.generate()
     embedding = LagEmbedding(dim=2, lag=2)
 
-    @jit(nopython=True)
-    def euclidean_dist(x: np.array, y: np.array) -> float:
-        dist: float = np.linalg.norm(x - y)
+    def euclidean_dist(
+        x: np.array,
+        y: np.array,
+    ) -> np.array:
+        dist = np.linalg.norm(x - y, axis=1)
         return dist
 
     rp = RecurrencePlot(signal=sinusoid_signal, embedding=embedding, metric=euclidean_dist)
-    rp2 = RecurrencePlot(signal=sinusoid_signal, embedding=embedding, metric=euclidean_dist)
 
     start = time.time()
     rp.generate()
@@ -82,13 +71,6 @@ if __name__ == "__main__":
     rp.show()
 
     start = time.time()
-    rp2.generate()
-    end = time.time()
-    print("Elapsed = %s" % (end - start))
-    rp2.show()
-
-    start = time.time()
     rp.generate()
     end = time.time()
     print("Elapsed = %s" % (end - start))
-    rp.show()

@@ -1,9 +1,7 @@
-from itertools import product
 from typing import Any, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
-from tqdm import tqdm
 
 from embeddings.lag_emebedding import Embedding
 
@@ -18,8 +16,15 @@ class RecurrencePlot:
         self._recurrence_plot = np.zeros(shape=(self.num_data_points, self.num_data_points))
 
     def generate(self, normalize: bool = True) -> np.array:
-        for i, j in tqdm(product(range(self.num_data_points), range(self.num_data_points))):
-            self._recurrence_plot[i, j] = self.metric(self.embedded_signal[i, :], self.embedded_signal[j, :])
+        """Generating a RP from the provided signal according to the specifications.
+
+        This creates only symmetric unthresholded RPs.
+        """
+        reshaped_signal = self.embedded_signal.reshape(self.num_data_points, -1)
+
+        for i in range(self.num_data_points):
+            dist = self.metric(reshaped_signal[i, :], reshaped_signal)
+            self._recurrence_plot[:, i] = dist
 
         self._recurrence_plot = self._recurrence_plot[::-1, :]
 
@@ -41,18 +46,31 @@ class RecurrencePlot:
 
 
 if __name__ == "__main__":
+    import time
+
     from embeddings.lag_emebedding import LagEmbedding
     from signals.artificial_signals import Sinusoid
 
-    sinusoid = Sinusoid(frequency=5, sampling_rate=100, sec=1)
+    sinusoid = Sinusoid(frequency=1, sampling_rate=200, sec=5)
     sinusoid_signal = sinusoid.generate()
     embedding = LagEmbedding(dim=2, lag=2)
 
-    def euclidean_dist(x: np.array, y: np.array) -> float:
-        dist: float = np.linalg.norm(x - y)
+    def euclidean_dist(
+        x: np.array,
+        y: np.array,
+    ) -> np.array:
+        dist = np.linalg.norm(x - y, axis=1)
         return dist
 
     rp = RecurrencePlot(signal=sinusoid_signal, embedding=embedding, metric=euclidean_dist)
 
+    start = time.time()
     rp.generate()
+    end = time.time()
+    print("Elapsed = %s" % (end - start))
     rp.show()
+
+    start = time.time()
+    rp.generate()
+    end = time.time()
+    print("Elapsed = %s" % (end - start))

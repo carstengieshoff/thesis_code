@@ -49,14 +49,19 @@ if __name__ == "__main__":
     import time
 
     from embeddings.lag_emebedding import LagEmbedding
-    from metrics.minkowski_distance import minkowski_dist
+    from embeddings.utils.fnn import fnn
+    from embeddings.utils.mutual_information import mutual_information
+    from metrics import cosine_dist
     from signals.artificial_signals import Sinusoid
 
-    sinusoid = Sinusoid(frequency=1, sampling_rate=200, sec=5, noise_rate=0.5)
+    sinusoid = Sinusoid(frequency=1, sampling_rate=200, sec=5, noise_rate=0.2)
     sinusoid_signal = sinusoid.generate()
+    sinusoid.show()
+    lag = mutual_information(signal=sinusoid_signal)
+    dim = fnn(signal=sinusoid_signal, lag=lag)
     embedding = LagEmbedding(dim=2, lag=2)
 
-    rp = RecurrencePlot(signal=sinusoid_signal, embedding=embedding, metric=minkowski_dist)
+    rp = RecurrencePlot(signal=sinusoid_signal, embedding=embedding, metric=cosine_dist)
 
     start = time.time()
     rp.generate()

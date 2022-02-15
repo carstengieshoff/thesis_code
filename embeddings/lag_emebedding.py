@@ -11,6 +11,10 @@ class Embedding(ABC):
     def embedd(self, signal: np.array) -> np.array:
         pass
 
+    @abstractmethod
+    def __str__(self) -> str:
+        pass
+
 
 class LagEmbedding(Embedding):
     """Embedding a signal by replacing each datapoint by a set of (past) data points."""
@@ -25,7 +29,7 @@ class LagEmbedding(Embedding):
     def embedd(self, signal: np.array) -> np.array:
 
         if len(signal.shape) >= 3:
-            raise NotImplementedError("LagEmbedding for 3d signals not yet implemented")
+            raise NotImplementedError("LagEmbedding for 3D signals not yet implemented")
 
         if signal.shape[0] < self._min_signal_length:
             raise RuntimeError(
@@ -44,6 +48,17 @@ class LagEmbedding(Embedding):
             embedded_signal = embedded_signal[:, self._lag * (1 - self._dim) - 1 :: self._lag]
 
         return embedded_signal.reshape(-1, signal.shape[1], self._dim).squeeze()
+
+    @property
+    def dim(self) -> int:
+        return self._dim
+
+    @property
+    def lag(self) -> int:
+        return self._lag
+
+    def __str__(self) -> str:
+        return self.__class__.__name__ + f"(dim={self.dim}, lag={self.lag})"
 
 
 if __name__ == "__main__":

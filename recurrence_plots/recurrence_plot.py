@@ -110,14 +110,14 @@ if __name__ == "__main__":
     from embeddings.utils.mutual_information import mutual_information
     from signals.artificial_signals import Sinusoid
 
-    sinusoid = Sinusoid(frequency=3, sampling_rate=1000, sec=2, noise_rate=0.5)
+    sinusoid = Sinusoid(frequency=3, sampling_rate=1000, sec=2, noise_rate=1)
     sinusoid_signal = sinusoid.generate()
     sinusoid.show()
 
     lag = mutual_information(signal=sinusoid_signal)
     dim = fnn(signal=sinusoid_signal, lag=lag)
     embedding = LagEmbedding(dim=dim, lag=lag)
-    calculator = RecurrencePlotCalculator(embedding=embedding, metric="seuclidean")
+    calculator = RecurrencePlotCalculator(embedding=embedding, metric="cosine")
     print(calculator)
 
     start = time.time()
@@ -125,7 +125,8 @@ if __name__ == "__main__":
     end = time.time()
     print("Elapsed = %s" % (end - start))
     rp.normalize()
-    rp.show(cmap="Greys")
+    rp.show(cmap="afmhot")
     rp.hist()
     rp.show(thresholded=True, epsilon=0.2, cmap="Greys")
     rp.hist(thresholded=True, epsilon=0.2)
+    print(rp)

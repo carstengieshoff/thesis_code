@@ -18,4 +18,9 @@ class DataReader(ABC):
 
     @abstractmethod
     def get_dataset(self) -> List[DataPoint]:
+        """Return a list of `Datapoints`.
+
+        Return a list of `Datapoints` i.e. of tuples (x,y) where x a `np.array` is of shape (n_samples, n_dims) and y
+        is a str.
+        """
         pass

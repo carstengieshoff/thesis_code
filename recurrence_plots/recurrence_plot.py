@@ -49,20 +49,14 @@ if __name__ == "__main__":
     import time
 
     from embeddings.lag_emebedding import LagEmbedding
+    from metrics.minkowski_distance import minkowski_dist
     from signals.artificial_signals import Sinusoid
 
-    sinusoid = Sinusoid(frequency=1, sampling_rate=200, sec=5)
+    sinusoid = Sinusoid(frequency=1, sampling_rate=200, sec=5, noise_rate=0.5)
     sinusoid_signal = sinusoid.generate()
     embedding = LagEmbedding(dim=2, lag=2)
 
-    def euclidean_dist(
-        x: np.array,
-        y: np.array,
-    ) -> np.array:
-        dist = np.linalg.norm(x - y, axis=1)
-        return dist
-
-    rp = RecurrencePlot(signal=sinusoid_signal, embedding=embedding, metric=euclidean_dist)
+    rp = RecurrencePlot(signal=sinusoid_signal, embedding=embedding, metric=minkowski_dist)
 
     start = time.time()
     rp.generate()

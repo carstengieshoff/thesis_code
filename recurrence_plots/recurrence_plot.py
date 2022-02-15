@@ -29,7 +29,9 @@ class RecurrencePlot:
         self._recurrence_plot = self._recurrence_plot[::-1, :]
 
         if normalize:
-            self._recurrence_plot /= np.max(self._recurrence_plot)
+            self._recurrence_plot = (self._recurrence_plot - np.min(self._recurrence_plot)) / (
+                np.max(self._recurrence_plot) - np.min(self._recurrence_plot)
+            )
 
         return self._recurrence_plot
 
@@ -54,12 +56,12 @@ if __name__ == "__main__":
     from metrics import cosine_dist
     from signals.artificial_signals import Sinusoid
 
-    sinusoid = Sinusoid(frequency=1, sampling_rate=200, sec=5, noise_rate=0.2)
+    sinusoid = Sinusoid(frequency=1, sampling_rate=200, sec=5, noise_rate=0.1)
     sinusoid_signal = sinusoid.generate()
     sinusoid.show()
     lag = mutual_information(signal=sinusoid_signal)
     dim = fnn(signal=sinusoid_signal, lag=lag)
-    embedding = LagEmbedding(dim=2, lag=2)
+    embedding = LagEmbedding(dim=dim, lag=lag)
 
     rp = RecurrencePlot(signal=sinusoid_signal, embedding=embedding, metric=cosine_dist)
 
@@ -70,6 +72,7 @@ if __name__ == "__main__":
     rp.show()
 
     start = time.time()
-    rp.generate()
+    rp.generate(normalize=False)
     end = time.time()
     print("Elapsed = %s" % (end - start))
+    rp.show()

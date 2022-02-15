@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial.distance import cdist
+from tqdm import tqdm
 
 from embeddings.lag_emebedding import Embedding
 
@@ -93,6 +94,19 @@ class RecurrencePlotCalculator:
         recurrence_plot = recurrence_plot[::-1, :]
 
         return RecurrencePlot(recurrence_plot, info=self.info)
+
+    def generate_dataset(self, signals: List[np.array]) -> List[RecurrencePlot]:
+        """Generating a RP from the each signal in `signals` according to the specifications.
+
+        Args:
+            signals: List of `np.array` of size (len_signal, dim_signal) representing a 1D or 2D signals.
+        """
+        num_signals = len(signals)
+        recurrence_plots: List[RecurrencePlot] = []
+        for signal in tqdm(signals, total=num_signals):
+            recurrence_plots.append(self.generate(signal=signal))
+
+        return recurrence_plots
 
     @property
     def info(self) -> str:

@@ -46,4 +46,3 @@ repos:
               - --allow-untyped-decorators
               - --strict
               - --warn-return-any
-              - --warn-unreachable

@@ -14,10 +14,11 @@ def PCA(signal: np.ndarray, num_pcs: int = 1, var: Optional[float] = None) -> np
     Returns:
         Signal as `np.ndarray` of same shape as input `signal`, reduced to the sepcified number of PCs.
     """
+    signal = (signal - signal.mean(axis=0)) / signal.std(axis=0)
     U, S, V = np.linalg.svd(signal)
 
     if var:
         cumulative_rel_pcs = np.cumsum(S / S.sum())
         num_pcs = np.where(cumulative_rel_pcs >= var)[0].min() + 1
 
-    return U[:, :num_pcs] @ np.diag(S[:num_pcs]) @ V[:num_pcs, :]
+    return U[:, :num_pcs] @ np.diag(S[:num_pcs])

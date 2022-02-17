@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Literal, Union
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from data_handling.data_reader import DataPoint, DataReader
 
@@ -16,10 +17,12 @@ class NatureReader(DataReader):
         self._info = self._read_info()
 
     def get_dataset(self) -> List[DataPoint]:
-        return [
-            DataPoint(self.get_data_from_reference(ref), self.get_label_from_reference(ref))
-            for ref in self._info.keys()
-        ]
+        ds: List[DataPoint] = []
+
+        for ref in tqdm(self._info.keys(), total=len(self._info)):
+            ds.append(DataPoint(self.get_data_from_reference(ref), self.get_label_from_reference(ref)))
+
+        return ds
 
     def get_data_from_reference(self, ref: str) -> np.ndarray:
         self._check_ref_exists(ref=ref)

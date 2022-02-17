@@ -9,6 +9,32 @@ from tqdm import tqdm
 
 from embeddings.lag_emebedding import Embedding
 
+CDIST_OPTIONS = [
+    "braycurtis",
+    "canberra",
+    "chebyshev",
+    "cityblock",
+    "correlation",
+    "cosine",
+    "dice",
+    "euclidean",
+    "hamming",
+    "jaccard",
+    "jensenshannon",
+    "kulsinski",
+    "kulczynski1",
+    "mahalanobis",
+    "matching",
+    "minkowski",
+    "rogerstanimoto",
+    "russellrao",
+    "seuclidean",
+    "sokalmichener",
+    "sokalsneath",
+    "sqeuclidean",
+    "yule",
+]
+
 
 class RecurrencePlot:
     def __init__(self, rp_data: np.ndarray, info: Optional[str] = None):

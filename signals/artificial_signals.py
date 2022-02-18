@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -100,6 +100,43 @@ class Chirp(ArtificialSignal):
         super().show(label=f"Freq: {self._frequency_start} Hz -> {self._frequency_end} Hz ", *args, **kwargs)
 
 
+class Wavefront(ArtificialSignal):
+    def __init__(
+        self,
+        freq_x: float = 0.1,
+        freq_y: float = 0.2,
+        freq_t: float = 10,
+        size: Tuple[int, int] = (100, 100),
+        *args: Any,
+        **kwargs: Any,
+    ):
+        super().__init__(*args, **kwargs)
+        self._freq_x = freq_x
+        self._freq_y = freq_y
+        self._freq_t = freq_t
+        self._size = size
+
+    @ArtificialSignal.add_noise
+    def generate(self) -> np.ndarray:
+        signal = np.zeros(shape=(len(self._x), self._size[0], self._size[1]))
+        for x_ in range(self._size[0]):
+            for y_ in range(self._size[1]):
+                signal[:, x_, y_] = np.sin(
+                    2 * np.pi * self._freq_y * y_ + 2 * np.pi * self._freq_x * x_ + self._freq_t * self._x
+                )
+
+        self._data = signal
+        return self._data
+
+    def show(self, num_frames: int = 1, *args: Any, **kwargs: Any) -> None:
+        if self._data is None:
+            self._data = self.generate()
+        for i in range(min(self._data.shape[0], num_frames)):
+            plt.imshow(self._data[i, :, :], *args, **kwargs)
+            plt.pause(1e-20)
+        plt.show()
+
+
 if __name__ == "__main__":
-    c = Chirp(frequency_start=1, frequency_end=10, sampling_rate=100, sec=5, noise_rate=0.5)
-    c.show()
+    c = Wavefront(sampling_rate=100, sec=5, noise_rate=0)
+    c.show(num_frames=10000)

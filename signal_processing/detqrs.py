@@ -15,42 +15,48 @@ def detqrs3(signal: np.array, Fs: int, n: int = 4, Ft: int = 60, pth: int = 50) 
     Returns:
         Locations (indices) of QRS peaks in `signal`.
     """
+    cutoff = 2 * Ft / Fs
 
-    wt = 2 * Ft / Fs
+    impulse_response = firwin(numtaps=n + 1, cutoff=cutoff)
+    signal = lfilter(b=impulse_response, a=1, x=signal.squeeze())
 
-    b = firwin(numtaps=n + 1, cutoff=wt)
-    Y1 = lfilter(b=b, a=1, x=signal.squeeze())
+    signal[:4] = signal.mean(axis=0)
+    diffs = np.zeros_like(signal)
+    diffs[1:] = (signal[1:] - signal[:-1]) * 100
+    diffs = np.where(diffs > 0, diffs**2, 0)
 
-    Y1[:4] = Y1.mean(axis=0)
-    Y2 = np.zeros_like(Y1)
-    Y2[1:] = (Y1[1:] - Y1[:-1]) * 100
-    Y3 = np.where(Y2 > 0, Y2**2, 0)
+    diff_threshold = diffs.max(axis=0) * pth / 100
 
-    th = Y3.max(axis=0) * pth / 100
-
-    p = np.zeros_like(Y1).squeeze()
+    peak_indicator = np.zeros_like(signal).squeeze()
     w = np.floor(0.16 * Fs).astype(int)
     s = np.floor(0.3 * Fs).astype(int)
 
-    for i in range(w, Y1.shape[0] - w):
+    for i in range(w, signal.shape[0] - w):
         if i > w:
-            if (Y1[i] > Y1[i - w : i]).all() and (Y1[i] > Y1[i + 1 : i + w + 1]).all():
+            if (signal[i] > signal[i - w : i]).all() and (signal[i] > signal[i + 1 : i + w + 1]).all():
                 if i <= s - 1:
-                    p[i] = (p[i - w : i] == 0).all() and Y3[i - w : i + w + 1].max() > th
+                    peak_indicator[i] = (peak_indicator[i - w : i] == 0).all() and diffs[
+                        i - w : i + w + 1
+                    ].max() > diff_threshold
                 else:
-                    p[i] = (p[i - s : i] == 0).all() and Y3[i - w : i + w + 1].max() > th
+                    peak_indicator[i] = (peak_indicator[i - s : i] == 0).all() and diffs[
+                        i - w : i + w + 1
+                    ].max() > diff_threshold
 
         else:  # This should not be necessary at all
-            if (Y1[i] > Y1[i - w : i]).all() and (Y1[i] > Y1[i + 1 : i + 1 + w]).all():
-                p[i] = (p[i - w : i] == 0).all() and Y3[i - w : i + w + 1].min() > th
+            if (signal[i] > signal[i - w : i]).all() and (signal[i] > signal[i + 1 : i + w + 1]).all():
+                peak_indicator[i] = (peak_indicator[i - w : i] == 0).all() and diffs[
+                    i - w : i + w + 1
+                ].max() > diff_threshold
 
-    if (p[:s] == 0).all():
+    if (peak_indicator[:s] == 0).all():
         for i in range(1, s):
-            p[i] = (Y1[i] > Y1[:i]).all() and (Y1[i] > Y1[i + 1 : s + 1]).all()
-            if p[i]:
+            peak_indicator[i] = (signal[i] > signal[:i]).all() and (signal[i] > signal[i + 1 : s + 1]).all()
+            if peak_indicator[i]:
                 break
 
-    return np.argwhere(p)
+    peak_indices = np.argwhere(peak_indicator)
+    return peak_indices
 
 
 if __name__ == "__main__":

@@ -32,20 +32,13 @@ def detqrs3(signal: np.array, Fs: int, n: int = 4, Ft: int = 60, pth: int = 50) 
     s = np.floor(0.3 * Fs).astype(int)
 
     for i in range(w, signal.shape[0] - w):
-        if i > w:
-            if (signal[i] > signal[i - w : i]).all() and (signal[i] > signal[i + 1 : i + w + 1]).all():
-                if i <= s - 1:
-                    peak_indicator[i] = (peak_indicator[i - w : i] == 0).all() and diffs[
-                        i - w : i + w + 1
-                    ].max() > diff_threshold
-                else:
-                    peak_indicator[i] = (peak_indicator[i - s : i] == 0).all() and diffs[
-                        i - w : i + w + 1
-                    ].max() > diff_threshold
-
-        else:  # This should not be necessary at all
-            if (signal[i] > signal[i - w : i]).all() and (signal[i] > signal[i + 1 : i + w + 1]).all():
+        if (signal[i] > signal[i - w : i]).all() and (signal[i] > signal[i + 1 : i + w + 1]).all():
+            if i <= s - 1:
                 peak_indicator[i] = (peak_indicator[i - w : i] == 0).all() and diffs[
+                    i - w : i + w + 1
+                ].max() > diff_threshold
+            else:
+                peak_indicator[i] = (peak_indicator[i - s : i] == 0).all() and diffs[
                     i - w : i + w + 1
                 ].max() > diff_threshold
 

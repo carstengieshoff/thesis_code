@@ -73,7 +73,6 @@ def byest(
 
     # LS estimated noise
     IK = np.linalg.pinv(H)
-    ri = np.empty(shape=(indmax + indmin + 1,))
     L = r_peaks.shape[0] - 1
     for ll in range(L):
         x = Y[:, r_peaks[ll] - indmin : r_peaks[ll] + indmax + 1].T

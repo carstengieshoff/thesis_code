@@ -72,7 +72,7 @@ if __name__ == "__main__":
     for i in range(12):
         ax[i, 0].plot(data[:, i])
         ax[i, 1].plot(data[:, i])
-        ax[i, 1].scatter(qrs_locs - 2, data[qrs_locs - 2, i], marker="o", color="red")
+        ax[i, 1].scatter(qrs_locs, data[qrs_locs, i], marker="o", color="red")
         ax[i, 0].set_title(f"lead_{i + 1}")
         ax[i, 1].set_title(f"lead_{i + 1}_filtered")
 

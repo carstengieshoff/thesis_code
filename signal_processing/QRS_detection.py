@@ -159,28 +159,6 @@ if __name__ == "__main__":
     fs = 1000
 
     byest = QRSEstimator(Fs=fs, nbvec=4)
-    # X, b = byest(
-    #    Y=data_centered,
-    #    r_peaks=qrs_locs,
-    # )
-    # print(X.shape)
-    # print(b.shape)
-    #
-    # X = X.reshape(12, -1).T
-    # b = b.reshape(12, -1).T
-
-    # fig, ax = plt.subplots(12, 3, figsize=(10, 40))
-
-    # for i in range(12):
-    #    ax[i, 0].set_title(f"lead_{i + 1}")
-    #    ax[i, 0].plot(data_centered[:, i], label="original")
-    #    ax[i, 0].scatter(qrs_locs - 2, data_centered[qrs_locs - 2, i], marker="o", color="red")
-    #    ax[i, 1].plot(b[:, i], label="b_BLUE")
-    #    ax[i, 1].set_title(f"b_BLUE_lead_{i + 1}")
-    #    ax[i, 2].plot(X[:, i], label="QRS")
-    #    ax[i, 2].set_title(f"QRS_lead_{i + 1}")
-    #
-    # plt.show()
 
     data_af = byest.reconstruct(Y=data_centered, r_peaks=qrs_locs).T
     fig, ax = plt.subplots(12, 2, figsize=(10, 40))

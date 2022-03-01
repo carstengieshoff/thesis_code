@@ -54,7 +54,6 @@ class QRSEstimator:
         X = np.delete(X, -1, axis=1)
         b_ls = self._get_LS_estimates(X=X, H=H)
         b_blue = self._get_BLUE_estimates(X=X, LS_estimates=b_ls, H=H)
-        print(1)
         return X, b_blue
 
     def reconstruct(self, Y: np.array, r_peaks: np.array) -> np.ndarray:

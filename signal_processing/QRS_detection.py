@@ -7,9 +7,9 @@ from scipy.linalg import toeplitz
 def _get_cov(s: np.array) -> np.array:
     num_windows, window_length = s.shape
     auto_corr = np.zeros(2 * window_length - 1)
-    for k in range(num_windows - 1):
+    for k in range(num_windows):
         # MATLAB xcorr(s,"biased") = np.correlate(s,s)/len(s)
-        auto_corr += np.correlate(a=s[k, :], v=s[k, :], mode="full") / window_length
+        auto_corr = auto_corr + np.correlate(a=s[k, :], v=s[k, :], mode="full") / window_length
 
     auto_corr = auto_corr[window_length - 1 :]
     cov = toeplitz(c=auto_corr)
@@ -51,8 +51,10 @@ class QRSEstimator:
 
         X = self._get_X(signal=Y.T, r_peaks=r_peaks)
         H = self._get_model_matrix(X=X, original=True)
+        X = np.delete(X, -1, axis=1)
         b_ls = self._get_LS_estimates(X=X, H=H)
         b_blue = self._get_BLUE_estimates(X=X, LS_estimates=b_ls, H=H)
+        print(1)
         return X, b_blue
 
     def reconstruct(self, Y: np.array, r_peaks: np.array) -> np.ndarray:
@@ -62,7 +64,7 @@ class QRSEstimator:
         indmax = window_length - self.indmin - 1
 
         Y = Y.T
-        re = np.concatenate([Y[:, : r_peaks[0] - self.indmin - 1 + 1].T, b[:, 0, :].T]).T
+        re = np.concatenate([Y[:, : r_peaks[0] - self.indmin].T, b[:, 0, :].T]).T
 
         # reconstitution with continuity at connection points
         for k in range(1, num_windows):
@@ -101,7 +103,9 @@ class QRSEstimator:
             if peak + indmax < signal.shape[1]:
                 X[:, k, :] = signal[:, peak - self.indmin : peak + indmax + 1]
             else:
-                X = np.delete(X, obj=k, axis=1)
+                remainder = signal[:, peak - self.indmin :]
+                fill = np.zeros(shape=(nblead, window_length - remainder.shape[1]))
+                X[:, k, :] += np.vstack([remainder.T, fill.T]).T
 
         return X
 

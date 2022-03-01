@@ -60,17 +60,17 @@ def byest(
     X_mean = X_mean.T
 
     # Original
-    # Un = np.ones(shape=(window_length, 1)) / np.sqrt(window_length)
-    # A = np.vstack([Un.T, np.arange(1, window_length + 1).reshape(-1, 1).T]).squeeze().T
-    # U1, _, _ = np.linalg.svd((np.eye(window_length) - A @ np.linalg.pinv(A)) @ X_mean)
-    # H = np.vstack([U1[:, :nbvec].T, A.T]).T
+    Un = np.ones(shape=(window_length, 1)) / np.sqrt(window_length)
+    A = np.vstack([Un.T, np.arange(1, window_length + 1).reshape(-1, 1).T]).squeeze().T
+    U1, _, _ = np.linalg.svd((np.eye(window_length) - A @ np.linalg.pinv(A)) @ X_mean)
+    H = np.vstack([U1[:, :nbvec].T, A.T]).T
 
     # Option 2:
-    Un = np.ones(shape=(window_length, 1)) / np.sqrt(window_length)
-    A = Un
-    U1, S, V = np.linalg.svd((np.eye(window_length) - A @ np.linalg.pinv(A)) @ X_mean)
-    K_a = U1[:, :nbvec]
-    H = np.vstack([K_a.T, np.arange(1, window_length + 1).reshape(-1, 1).T]).T
+    # Un = np.ones(shape=(window_length, 1)) / np.sqrt(window_length)
+    # A = Un
+    # U1, S, V = np.linalg.svd((np.eye(window_length) - A @ np.linalg.pinv(A)) @ X_mean)
+    # K_a = U1[:, :nbvec]
+    # H = np.vstack([K_a.T, np.arange(1, window_length + 1).reshape(-1, 1).T]).T
 
     # LS estimated noise
     IH = np.linalg.pinv(H)

@@ -48,7 +48,7 @@ def detqrs3(signal: np.array, Fs: int, n: int = 4, Ft: int = 60, pth: int = 50) 
             if peak_indicator[i]:
                 break
 
-    peak_indices = np.argwhere(peak_indicator)
+    peak_indices = np.argwhere(peak_indicator).squeeze().astype(int)
     return peak_indices
 
 

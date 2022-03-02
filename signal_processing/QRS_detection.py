@@ -62,7 +62,8 @@ class QRSEstimator:
         num_leads, num_windows, window_length = X.shape
         indmax = window_length - self.indmin - 1
 
-        Y = Y.T
+        if Y.shape[0] > Y.shape[1]:
+            Y = Y.T
         re = np.concatenate([Y[:, : r_peaks[0] - self.indmin].T, b[:, 0, :].T]).T
 
         # reconstitution with continuity at connection points
@@ -80,7 +81,7 @@ class QRSEstimator:
             re = np.concatenate([re.T, vec[:, 1:-1].T, b[:, k, :].T]).T
 
         re = np.concatenate([re.T, Y[:, re.shape[1] :].T]).T
-        return re
+        return re.T
 
     def _get_X(self, signal: np.array, r_peaks: np.array) -> np.array:
         """Return a windowed version of `Y`.
@@ -160,7 +161,7 @@ if __name__ == "__main__":
 
     byest = QRSEstimator(Fs=fs, nbvec=4)
 
-    data_af = byest.reconstruct(Y=data_centered, r_peaks=qrs_locs).T
+    data_af = byest.reconstruct(Y=data_centered, r_peaks=qrs_locs)
     fig, ax = plt.subplots(12, 2, figsize=(10, 40))
 
     for i in range(12):

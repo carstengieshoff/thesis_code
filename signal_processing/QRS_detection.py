@@ -64,6 +64,8 @@ class QRSEstimator:
 
         if Y.shape[0] > Y.shape[1]:
             Y = Y.T
+
+        r_peaks = r_peaks[r_peaks > self.indmin]
         re = np.concatenate([Y[:, : r_peaks[0] - self.indmin].T, b[:, 0, :].T]).T
 
         # reconstitution with continuity at connection points

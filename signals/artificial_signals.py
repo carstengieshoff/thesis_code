@@ -61,6 +61,10 @@ class ArtificialSignal(ABC):
         """Sampling rate of the signal."""
         return self._sampling_rate
 
+    @property
+    def x(self) -> np.array:
+        return self._x
+
     def __len__(self) -> int:
         return self._sec * self._sampling_rate
 

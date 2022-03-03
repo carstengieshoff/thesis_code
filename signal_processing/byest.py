@@ -16,7 +16,7 @@ def _get_cov(s: np.array) -> np.array:
     return cov
 
 
-class QRSEstimator:
+class Byest:
     """Bayesian estimation of AF signal.
 
     Args:
@@ -161,7 +161,7 @@ if __name__ == "__main__":
     data_centered = data["data_centered"].T
     fs = 1000
 
-    byest = QRSEstimator(Fs=fs, nbvec=4)
+    byest = Byest(Fs=fs, nbvec=4)
 
     data_af = byest.reconstruct(Y=data_centered, r_peaks=qrs_locs)
     fig, ax = plt.subplots(12, 2, figsize=(10, 40))

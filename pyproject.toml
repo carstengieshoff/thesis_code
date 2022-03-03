@@ -23,6 +23,9 @@ openpyxl = "^3.0.9"
 numba = "^0.55.1"
 pytest = "^7.0.0"
 teaspoon = "^1.2.5"
+autopep8 = "^1.6.0"
+ipykernel = "^6.9.1"
+neurokit2 = "^0.1.7"
 
 [tool.poetry.dev-dependencies]
 

@@ -100,9 +100,15 @@ class RecurrencePlotCalculator:
          (see `cdist <https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html>`_).
     """
 
-    def __init__(self, metric: Union[Callable[[np.array, np.array], np.ndarray], str], embedding: Embedding):
+    def __init__(
+        self,
+        metric: Union[Callable[[np.array, np.array], np.ndarray], str],
+        embedding: Embedding,
+        dtype: str = "float16",
+    ):
         self.embedding = embedding
         self.metric = metric
+        self._dtype = dtype
 
     def generate(self, signal: np.array) -> RecurrencePlot:
         """Generating a RP from the provided signal according to the specifications.
@@ -115,7 +121,7 @@ class RecurrencePlotCalculator:
         embedded_signal = self.embedding.embedd(signal)
         reshaped_signal = embedded_signal.reshape(embedded_signal.shape[0], -1)
 
-        recurrence_plot = cdist(reshaped_signal, reshaped_signal, metric=self.metric)
+        recurrence_plot = cdist(reshaped_signal, reshaped_signal, metric=self.metric).astype(self._dtype)
 
         recurrence_plot = recurrence_plot[::-1, :]
 

@@ -1,7 +1,9 @@
 import numpy as np
 
 
-def split_signal(signal: np.array, r_peaks: np.array, front: int, back: int) -> np.array:
+def split_signal(
+    signal: np.array, r_peaks: np.array, front: int, back: int, enforce_disjoint: bool = False
+) -> np.array:
     """Split an ECG signal into windows around the r-peaks.
 
     Args:
@@ -18,8 +20,8 @@ def split_signal(signal: np.array, r_peaks: np.array, front: int, back: int) -> 
     r_diffs = r_peaks[1:] - r_peaks[:-1]
     window_size = front + back + 1
 
-    if window_size > r_diffs.min():
-        raise ValueError(f"The specified window size cannot extend {r_diffs.min()}, got {window_size}")
+    if enforce_disjoint and window_size > r_diffs.min():
+        raise RuntimeError(f"The specified window size cannot extend {r_diffs.min()}, got {window_size}")
 
     r_peaks = r_peaks[front <= r_peaks]
     r_peaks = r_peaks[r_peaks < signal_len - back - 1]
@@ -34,7 +36,7 @@ def split_signal(signal: np.array, r_peaks: np.array, front: int, back: int) -> 
     return windowed_signal
 
 
-def get_rr_intervals(signal: np.array, r_peaks: np.array) -> np.array:
+def get_rr_intervals(signal: np.array, r_peaks: np.array, enforce_disjoint: bool = False) -> np.array:
     """Split an ECG signal into rr-intervals of maximal equal length.
 
 
@@ -48,4 +50,4 @@ def get_rr_intervals(signal: np.array, r_peaks: np.array) -> np.array:
     """
     r_diffs = r_peaks[1:] - r_peaks[:-1]
 
-    return split_signal(signal=signal, r_peaks=r_peaks, front=0, back=r_diffs.min())
+    return split_signal(signal=signal, r_peaks=r_peaks, front=0, back=r_diffs.min(), enforce_disjoint=enforce_disjoint)

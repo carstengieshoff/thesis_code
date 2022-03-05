@@ -22,7 +22,7 @@ def plot_hist2d(
         a: np.array of shape (len_a,)
         b: np.array of shape (len_b,)
     """
-    # Todo: Add margin distrubutions
+    # Todo: Add margin distributions
     a_bins = np.arange(-1, max(a) + 1) + 0.5
     b_bins = np.arange(-1, max(b) + 1) + 0.5
     hist, xedges, yedges = np.histogram2d(a, b, bins=(a_bins, b_bins))

@@ -8,6 +8,7 @@ from scipy.spatial.distance import cdist
 from tqdm import tqdm
 
 from embeddings.lag_emebedding import Embedding
+from visualizations import plot_rp
 
 CDIST_OPTIONS = [
     "braycurtis",
@@ -66,10 +67,9 @@ class RecurrencePlot:
             return thresholded_rp
 
     def show(self, thresholded: bool = False, epsilon: Optional[float] = None, *args: Any, **kwargs: Any) -> None:
-        fig, ax = plt.subplots(1, 1)
-        pos = ax.imshow(self.get_rp(thresholded=thresholded, epsilon=epsilon), *args, **kwargs)
-        fig.colorbar(pos, ax=ax)
-        plt.show()
+        rp_data = self.get_rp(thresholded=thresholded, epsilon=epsilon)
+        # type ignore : See https://github.com/python/mypy/issues/6799
+        plot_rp(rp_data=rp_data, *args, **kwargs)  # type: ignore
 
     def hist(self, thresholded: bool = False, epsilon: Optional[float] = None, *args: Any, **kwargs: Any) -> None:
         fig, ax = plt.subplots(1, 1)

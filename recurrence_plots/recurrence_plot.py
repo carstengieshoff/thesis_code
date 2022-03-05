@@ -171,8 +171,18 @@ if __name__ == "__main__":
     end = time.time()
     print("Elapsed = %s" % (end - start))
     rp.normalize()
-    rp.show(cmap="afmhot")
-    rp.hist()
-    rp.show(thresholded=True, epsilon=0.2, cmap="Greys")
-    rp.hist(thresholded=True, epsilon=0.2)
+
+    fig = plt.figure()
+
+    ax = plt.subplot(212)
+    ax.plot(sinusoid_signal)
+
+    ax = plt.subplot(221)
+    plot_rp(rp.get_rp(), fig=fig, ax=ax)
+
+    ax = plt.subplot(222)
+    plot_rp(rp.get_rp(thresholded=True, epsilon=0.1), fig=fig, ax=ax)
+
+    plt.show()
+
     print(rp)

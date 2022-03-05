@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 import numpy as np
 from scipy.linalg import toeplitz
 
-from signal_processing.signal_splitting import split_signal
+from signal_processing.fixed_window_signal_splitting import split_signal
 
 
 def _get_cov(s: np.array) -> np.array:

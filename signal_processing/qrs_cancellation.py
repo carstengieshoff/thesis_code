@@ -142,7 +142,7 @@ if __name__ == "__main__":
     data_centered = data["data_centered"].T
     fs = 1000
 
-    byest = QRSEstimator(Fs=fs, nbvec=4, front=200, back=200)
+    byest = QRSEstimator(Fs=fs, nbvec=4, front=300, back=300)
 
     data_af = byest.reconstruct(Y=data_centered, r_peaks=qrs_locs)
     fig, ax = plt.subplots(12, 2, figsize=(10, 40))

@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import Any, List
 
 import torch
@@ -8,15 +7,14 @@ from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 
 
-class CNN(ABC):
+class CNN(nn.Module):  # type: ignore
     def __init__(self) -> None:
         super().__init__()
         self.losses: List[float] = []
         self.val_acc: List[float] = []
 
-    @abstractmethod
     def forward(self, x: torch.tensor) -> torch.tensor:
-        pass
+        return x
 
     def train_nn(
         self,

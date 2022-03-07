@@ -73,7 +73,7 @@ class Dataset:
         ax.plot(self._signals[item])
         ax.set_title("Signal")
 
-        if self._recurrence_plots:
+        if self._recurrence_plots is not None:
             ax = plt.subplot(122)
             plot_rp(self._recurrence_plots[item].squeeze(), ax=ax, fig=fig)
             ax.set_title("RP")

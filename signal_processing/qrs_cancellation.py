@@ -32,8 +32,8 @@ class QRSEstimator:
     def __init__(self, Fs: int, nbvec: int = 5, front: Optional[int] = None, back: Optional[int] = None) -> None:
         self.Fs = Fs
         self.nbvec = nbvec
-        self.front = front
-        self.back = back
+        self._custom_front = front
+        self._custom_back = back
 
     def __call__(self, Y: np.array, r_peaks: np.array) -> Tuple[np.ndarray, np.ndarray]:
         """Extract contact and ambient noise from ECG signals.
@@ -52,13 +52,17 @@ class QRSEstimator:
         """
         r_peak_dist = r_peaks[1:] - r_peaks[:-1]
 
-        if self.front is None:
-            self.front = np.floor(0.04 * self.Fs).astype(int)
+        if self._custom_front is None:
+            self._front = np.floor(0.04 * self.Fs).astype(int)
+        else:
+            self._front = self._custom_front
 
-        if self.back is None:
-            self.back = np.floor(r_peak_dist.min()).astype(int) - self.front - 1
+        if self._custom_back is None:
+            self._back = np.floor(r_peak_dist.min()).astype(int) - self._front - 1
+        else:
+            self._back = self._custom_back
 
-        X = split_signal(signal=Y, r_peaks=r_peaks, front=self.front, back=self.back)
+        X = split_signal(signal=Y, r_peaks=r_peaks, front=self._front, back=self._back)
         H = self._get_model_matrix(X=X, original=True)
         b_ls = self._get_LS_estimates(X=X, H=H)
         b_blue = self._get_BLUE_estimates(X=X, LS_estimates=b_ls, H=H)
@@ -72,19 +76,18 @@ class QRSEstimator:
         if Y.shape[0] > Y.shape[1]:
             Y = Y.T
 
-        r_peaks = r_peaks[r_peaks > self.front]
-        re = np.concatenate([Y[:, : r_peaks[0] - self.front].T, b[:, 0, :].T]).T
-
+        r_peaks = r_peaks[r_peaks > self._front]
+        re = np.concatenate([Y[:, : r_peaks[0] - self._front].T, b[:, 0, :].T]).T
         # reconstitution with continuity at connection points
         for k in range(1, num_windows):
             c1 = b[:, k - 1, -1]
             c2 = b[:, k, 0]
             N = r_peaks[k] - r_peaks[k - 1] - window_length + 2
             gap = np.repeat(np.arange(1, N + 1).reshape(1, -1), repeats=num_leads, axis=0)
-            bet = (Y[:, r_peaks[k] - self.front] - Y[:, r_peaks[k - 1] + self.back] - c2 + c1) / (N - 1)
-            alp = Y[:, r_peaks[k - 1] + self.back] - c1 - bet
+            bet = (Y[:, r_peaks[k] - self._front] - Y[:, r_peaks[k - 1] + self._back] - c2 + c1) / (N - 1)
+            alp = Y[:, r_peaks[k - 1] + self._back] - c1 - bet
 
-            vec = Y[:, r_peaks[k - 1] + self.back : r_peaks[k] - self.front + 1] - (
+            vec = Y[:, r_peaks[k - 1] + self._back : r_peaks[k] - self._front + 1] - (
                 alp.reshape(-1, 1) + bet.reshape(-1, 1) * gap
             )
             re = np.concatenate([re.T, vec[:, 1:-1].T, b[:, k, :].T]).T

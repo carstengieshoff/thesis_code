@@ -4,6 +4,7 @@ import random
 from typing import Any, List, Optional, Tuple
 
 import numpy as np
+import torch
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
@@ -14,7 +15,11 @@ from visualizations import plot_hist2d, plot_rp
 
 
 class Dataset:
-    def __init__(self, dataset: List[DataPoint], rps: Optional[np.array] = None):
+    def __init__(
+        self,
+        dataset: List[DataPoint],
+        rps: Optional[np.array] = None,
+    ):
         self._signals, self._labels = self._list_data_to_arrays(dataset=dataset)
         self._recurrence_plots: Optional[np.array] = rps
 
@@ -104,11 +109,11 @@ class Dataset:
 
         plot_hist2d(a=lags, b=dims, ylabel="lag", xlabel="dims")
 
-    def __getitem__(self, item: int) -> Tuple[np.array, int]:
+    def __getitem__(self, item: int) -> Tuple[torch.tensor, torch.tensor]:
         if self._recurrence_plots is None:
             return self._signals[item], self._labels[item]
         else:
-            return self._recurrence_plots[item], self._labels[item]
+            return torch.from_numpy(self._recurrence_plots[item]), torch.tensor(self._labels[item])
 
     def __len__(self) -> int:
         assert self._signals.shape[0] == self._labels.shape[0], "Number of signals and labels does not match"

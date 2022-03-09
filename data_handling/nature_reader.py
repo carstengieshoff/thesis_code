@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -11,11 +11,18 @@ DataType = Literal["noisy", "clean"]
 
 
 class NatureReader(DataReader):
-    def __init__(self, path: Union[str, Path], use: DataType = "noisy", with_sb: bool = False):
+    def __init__(
+        self,
+        path: Union[str, Path],
+        use: DataType = "noisy",
+        with_sb: bool = False,
+        read_labels: Optional[List[str]] = None,
+    ):
         super().__init__(path=path)
         self._use = use
         self._info, self.label_to_int, self.int_to_label = self._read_info()
         self._with_sb = with_sb
+        self._accepted_labels = read_labels
 
     def get_dataset(self) -> List[DataPoint]:
         ds: List[DataPoint] = []
@@ -23,6 +30,8 @@ class NatureReader(DataReader):
         for ref in tqdm(self._info.keys(), total=len(self._info)):
             data = self.get_data_from_reference(ref)
             if self.get_label_from_reference(ref) == "SB" and not self._with_sb:
+                continue
+            if self._accepted_labels is not None and self.get_label_from_reference(ref) not in self._accepted_labels:
                 continue
             label = self.label_to_int[self.get_label_from_reference(ref)]
             ds.append(DataPoint(data, label))

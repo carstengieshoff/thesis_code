@@ -29,9 +29,8 @@ class CNN(nn.Module):  # type: ignore
         **kwargs: Any,
     ) -> None:
         """Train the nn."""
+        running_loss = []
         for epoch in range(num_epochs):
-
-            running_loss = 0.0
 
             for i, data in enumerate(trainloader, 0):
                 inputs, labels = data
@@ -41,16 +40,15 @@ class CNN(nn.Module):  # type: ignore
 
                 # forward + backward + optimize
                 outputs = self.forward(inputs.float())
-                loss = criterion(outputs, labels)
+                loss = criterion(outputs, labels.long())
                 loss.backward()
                 optimizer.step()
 
                 # print statistics
-                running_loss += loss.item()
+                running_loss.append(loss.item())
                 if i % show_every_n == (show_every_n - 1):  # print every 2000 mini-batches
-                    print(f"[{epoch + 1}, {i + 1:5d}] loss: {running_loss:.3f}")
-                    self.losses.append(running_loss)
-                    running_loss = 0.0
+                    print(f"[{epoch + 1}, {i + 1:5d}] loss: {(sum(running_loss)/len(running_loss)):.3f}")
+                    running_loss = []
                     if validationloader:
                         self.val_acc.append(self.evaluate_nn(validationloader))
 

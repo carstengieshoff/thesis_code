@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -7,14 +7,12 @@ from tqdm import tqdm
 
 from data_handling.data_reader import DataPoint, DataReader
 
-DataType = Literal["noisy", "clean"]
-
 
 class NatureReader(DataReader):
     def __init__(
         self,
         path: Union[str, Path],
-        use: DataType = "noisy",
+        use: str = "noisy",
         with_sb: bool = False,
         read_labels: Optional[List[str]] = None,
     ):
@@ -69,7 +67,7 @@ class NatureReader(DataReader):
 
 
 class NatureReaderRestricted(DataReader):
-    def __init__(self, path: Union[str, Path], use: DataType = "noisy"):
+    def __init__(self, path: Union[str, Path], use: str = "noisy"):
         super().__init__(path=path)
         self._use = use
         self._info, self.label_to_int, self.int_to_label = self._read_info()

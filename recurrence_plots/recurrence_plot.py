@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy
@@ -12,8 +12,6 @@ from tqdm import tqdm
 from embeddings.lag_emebedding import Embedding
 from recurrence_plots.utils import image_histogram_equalization
 from visualizations import plot_rp
-
-ThresholdOptions = Literal["relative", "absolute"]
 
 CDIST_OPTIONS = [
     "braycurtis",
@@ -84,7 +82,7 @@ class RecurrencePlot:
 
     def get_rp(
         self,
-        threshold: Optional[ThresholdOptions] = None,
+        threshold: Optional[str] = None,
         epsilon: Optional[float] = None,
         size: Optional[Tuple[int, int]] = None,
     ) -> np.ndarray:
@@ -106,7 +104,9 @@ class RecurrencePlot:
             elif threshold == "relative":
                 mask = self._unthresholded_rp <= np.quantile(self._unthresholded_rp, epsilon)
             else:
-                raise ValueError("Unrecognized value for `threshold`")
+                raise ValueError(
+                    f"Unrecognized value for `threshold`, expected one of {', '.join(['relative', 'absolute'])}"
+                )
 
             thresholded_rp = np.zeros_like(self._unthresholded_rp)
             thresholded_rp[mask] = 1
@@ -118,7 +118,7 @@ class RecurrencePlot:
 
     def show(
         self,
-        threshold: Optional[ThresholdOptions] = None,
+        threshold: Optional[str] = None,
         epsilon: Optional[float] = None,
         size: Optional[Tuple[int, int]] = (512, 512),
         *args: Any,
@@ -128,9 +128,7 @@ class RecurrencePlot:
         # type ignore : See https://github.com/python/mypy/issues/6799
         plot_rp(rp_data=rp_data, *args, **kwargs)  # type: ignore
 
-    def hist(
-        self, threshold: Optional[ThresholdOptions] = None, epsilon: Optional[float] = None, *args: Any, **kwargs: Any
-    ) -> None:
+    def hist(self, threshold: Optional[str] = None, epsilon: Optional[float] = None, *args: Any, **kwargs: Any) -> None:
         fig, ax = plt.subplots(1, 1)
         ax.hist(self.get_rp(threshold=threshold, epsilon=epsilon).flatten(), *args, **kwargs)
         plt.show()

@@ -1,13 +1,11 @@
-from typing import Any, Literal, Union, get_args
+from typing import Any, Union
 
 import numpy as np
 from scipy.stats import mode
 from teaspoon.parameter_selection.FNN_n import FNN_n
 
-FNN_type = Literal["mean", "mode", "complete"]
 
-
-def fnn(signal: np.array, lag: int, fnn_type: FNN_type = "mean", *args: Any, **kwargs: Any) -> Union[int, np.array]:
+def fnn(signal: np.array, lag: int, fnn_type: str = "mean", *args: Any, **kwargs: Any) -> Union[int, np.array]:
     """Calculating False Nearest Neighbours on each dimension of a (multivariate) signal.
 
     For a signal of shape (n_samples, n_dims), `FNN_n` from `teaspoon` to each of the n_dims signals of shape
@@ -26,7 +24,7 @@ def fnn(signal: np.array, lag: int, fnn_type: FNN_type = "mean", *args: Any, **k
     elif fnn_type == "complete":
         return embedding_dims.astype(int)
     else:
-        valid_args = [f"`{arg}`" for arg in get_args(FNN_type)]
+        valid_args = [f"`{arg}`" for arg in ["mean", "mode", "complete"]]
         raise RuntimeError(f"Unknown value `{fnn_type}` for `mi_type`, expected one of {', '.join(valid_args)}")
 
 

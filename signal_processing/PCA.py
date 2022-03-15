@@ -14,7 +14,7 @@ def PCA(signal: np.ndarray, num_pcs: int = 1, var: Optional[float] = None) -> np
     Returns:
         Signal as `np.ndarray` of same shape as input `signal`, reduced to the sepcified number of PCs.
     """
-    signal = (signal - signal.mean(axis=0)) / signal.std(axis=0)
+    signal = signal - signal.mean(axis=0)  # / signal.std(axis=0)
     U, S, V = np.linalg.svd(signal)
 
     if var:

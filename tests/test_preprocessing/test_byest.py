@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.io import loadmat
 
-from signal_processing.QRS_detection import QRSEstimator
+from signal_processing.byest import Byest
 
 
 def test_byest_close_to_MATLAB() -> None:
@@ -13,7 +13,7 @@ def test_byest_close_to_MATLAB() -> None:
     expected_data = detqrs_data["data_af"]
 
     # when
-    actual_data = QRSEstimator(Fs=fs, nbvec=5).reconstruct(Y=signal, r_peaks=qrs_locs)
+    actual_data = Byest(Fs=fs, nbvec=5).reconstruct(Y=signal, r_peaks=qrs_locs)
 
     # then
     for idx in range(12):

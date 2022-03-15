@@ -1,7 +1,9 @@
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 from scipy.linalg import toeplitz
+
+from signal_processing.fixed_window_signal_splitting import split_signal
 
 
 def _get_cov(s: np.array) -> np.array:
@@ -27,10 +29,11 @@ class QRSEstimator:
         Extracted atrial activity signal.
     """
 
-    def __init__(self, Fs: int, nbvec: int = 5) -> None:
+    def __init__(self, Fs: int, nbvec: int = 5, front: Optional[int] = None, back: Optional[int] = None) -> None:
         self.Fs = Fs
         self.nbvec = nbvec
-        self.indmin = np.floor(0.04 * self.Fs).astype(int)
+        self._custom_front = front
+        self._custom_back = back
 
     def __call__(self, Y: np.array, r_peaks: np.array) -> Tuple[np.ndarray, np.ndarray]:
         """Extract contact and ambient noise from ECG signals.
@@ -47,11 +50,20 @@ class QRSEstimator:
             b: np.array of shape (n, num_peaks, window_length) representing the estimations of contact and ambient noise
 
         """
-        r_peaks = r_peaks[r_peaks > self.indmin]
+        r_peak_dist = r_peaks[1:] - r_peaks[:-1]
 
-        X = self._get_X(signal=Y.T, r_peaks=r_peaks)
+        if self._custom_front is None:
+            self._front = np.floor(0.04 * self.Fs).astype(int)
+        else:
+            self._front = self._custom_front
+
+        if self._custom_back is None:
+            self._back = np.floor(r_peak_dist.min()).astype(int) - self._front - 1
+        else:
+            self._back = self._custom_back
+
+        X = split_signal(signal=Y, r_peaks=r_peaks, front=self._front, back=self._back)
         H = self._get_model_matrix(X=X, original=True)
-        X = np.delete(X, -1, axis=1)
         b_ls = self._get_LS_estimates(X=X, H=H)
         b_blue = self._get_BLUE_estimates(X=X, LS_estimates=b_ls, H=H)
         return X, b_blue
@@ -60,53 +72,28 @@ class QRSEstimator:
         """"""
         X, b = self.__call__(Y=Y, r_peaks=r_peaks)
         num_leads, num_windows, window_length = X.shape
-        indmax = window_length - self.indmin - 1
 
-        Y = Y.T
-        re = np.concatenate([Y[:, : r_peaks[0] - self.indmin].T, b[:, 0, :].T]).T
+        if Y.shape[0] > Y.shape[1]:
+            Y = Y.T
 
+        r_peaks = r_peaks[r_peaks > self._front]
+        re = np.concatenate([Y[:, : r_peaks[0] - self._front].T, b[:, 0, :].T]).T
         # reconstitution with continuity at connection points
         for k in range(1, num_windows):
             c1 = b[:, k - 1, -1]
             c2 = b[:, k, 0]
             N = r_peaks[k] - r_peaks[k - 1] - window_length + 2
             gap = np.repeat(np.arange(1, N + 1).reshape(1, -1), repeats=num_leads, axis=0)
-            bet = (Y[:, r_peaks[k] - self.indmin] - Y[:, r_peaks[k - 1] + indmax] - c2 + c1) / (N - 1)
-            alp = Y[:, r_peaks[k - 1] + indmax] - c1 - bet
+            bet = (Y[:, r_peaks[k] - self._front] - Y[:, r_peaks[k - 1] + self._back] - c2 + c1) / (N - 1)
+            alp = Y[:, r_peaks[k - 1] + self._back] - c1 - bet
 
-            vec = Y[:, r_peaks[k - 1] + indmax : r_peaks[k] - self.indmin + 1] - (
+            vec = Y[:, r_peaks[k - 1] + self._back : r_peaks[k] - self._front + 1] - (
                 alp.reshape(-1, 1) + bet.reshape(-1, 1) * gap
             )
             re = np.concatenate([re.T, vec[:, 1:-1].T, b[:, k, :].T]).T
 
         re = np.concatenate([re.T, Y[:, re.shape[1] :].T]).T
-        return re
-
-    def _get_X(self, signal: np.array, r_peaks: np.array) -> np.array:
-        """Return a windowed version of `Y`.
-
-        If `Y` is of shape (num_leads, signal_length), and `r_peaks` is of size (num_peaks,) this returns
-        `X` of size (num_leads, num_peaks, window_length). This constitutes a window of length 'window_length' around
-        each peak for each lead of the signal `Y`.
-
-        """
-        nblead = signal.shape[0]
-        num_peaks = r_peaks.shape[0]
-        r_peak_dist = r_peaks[1:] - r_peaks[:-1]
-
-        indmax = np.floor(r_peak_dist.min()).astype(int) - self.indmin - 1
-        window_length = self.indmin + indmax + 1
-
-        X = np.zeros(shape=(nblead, num_peaks, window_length))
-        for k, peak in enumerate(r_peaks):
-            if peak + indmax < signal.shape[1]:
-                X[:, k, :] = signal[:, peak - self.indmin : peak + indmax + 1]
-            else:
-                remainder = signal[:, peak - self.indmin :]
-                fill = np.zeros(shape=(nblead, window_length - remainder.shape[1]))
-                X[:, k, :] += np.vstack([remainder.T, fill.T]).T
-
-        return X
+        return re.T
 
     def _get_model_matrix(self, X: np.array, original: bool = False) -> np.array:
         X_mean = X.mean(axis=1)
@@ -158,9 +145,9 @@ if __name__ == "__main__":
     data_centered = data["data_centered"].T
     fs = 1000
 
-    byest = QRSEstimator(Fs=fs, nbvec=4)
+    byest = QRSEstimator(Fs=fs, nbvec=4, front=300, back=300)
 
-    data_af = byest.reconstruct(Y=data_centered, r_peaks=qrs_locs).T
+    data_af = byest.reconstruct(Y=data_centered, r_peaks=qrs_locs)
     fig, ax = plt.subplots(12, 2, figsize=(10, 40))
 
     for i in range(12):

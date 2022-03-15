@@ -1,10 +1,11 @@
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 from scipy.fft import rfft
+from scipy.signal import filtfilt
 
 
-def spectral_envelope(signal: np.array) -> np.array:
+def spectral_envelope(signal: np.array, h: Optional[np.array] = None) -> np.array:
     """Calculates the spectral envelope of a signal.
 
     This follows sections 1 and 4 of `The Spectral Envelope and Its Applications (Stoffer, 1998)`, see
@@ -19,12 +20,15 @@ def spectral_envelope(signal: np.array) -> np.array:
     z = signal / signal.std(axis=0)
     In = rfft(z, axis=0, norm="ortho")
     fz = np.array([In[i, :].reshape(-1, 1) @ In[i, :].reshape(1, -1) for i in range(In.shape[0])])
+    if h is not None:
+        h = h / h.sum()
+        fz = filtfilt(h, 1, fz, axis=0)
     lam = np.array([np.abs(np.linalg.eig(f)[0]).max() for f in fz])
 
     return np.abs(lam)
 
 
-def get_spectral_envelope_max(signal: np.array) -> Union[int, np.array]:
+def get_spectral_envelope_max(signal: np.array, h: Optional[np.array] = None) -> Union[int, np.array]:
     """Return index of maximal peak in spectral envelope.
 
     See 'spectral_envelope'.
@@ -33,7 +37,7 @@ def get_spectral_envelope_max(signal: np.array) -> Union[int, np.array]:
        signal: np.array of shape (len_signal, dim_signal) for which to the index.
 
     """
-    lam = spectral_envelope(signal=signal)
+    lam = spectral_envelope(signal=signal, h=h)
     idx = np.argmax(lam)
     return idx.squeeze()
 
@@ -67,7 +71,7 @@ if __name__ == "__main__":
 
     data = np.vstack([sin1.data.T, sin2.data.T, sin3.data.T, chirp.data.T]).T
 
-    env = spectral_envelope(signal=data)
+    env = spectral_envelope(signal=data, h=None)
     fig, ax = plt.subplots(1, 2, figsize=(20, 10))
     ax[0].plot(env)
     ax[0].set_title("Spectral Envelope")

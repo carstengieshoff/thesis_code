@@ -97,5 +97,5 @@ def test_lag_embedding_raises_for_ed_signal() -> None:
     embedding = LagEmbedding(lag=1, dim=1)
 
     # when then
-    with pytest.raises(NotImplementedError, match="LagEmbedding for 3d signals not yet implemented"):
+    with pytest.raises(NotImplementedError, match="not yet implemented"):
         embedding.embedd(signal)

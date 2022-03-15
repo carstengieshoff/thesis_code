@@ -48,7 +48,7 @@ def detqrs3(signal: np.array, Fs: int, n: int = 4, Ft: int = 60, pth: int = 50) 
             if peak_indicator[i]:
                 break
 
-    peak_indices = np.argwhere(peak_indicator)
+    peak_indices = np.argwhere(peak_indicator).squeeze().astype(int)
     return peak_indices
 
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     for i in range(12):
         ax[i, 0].plot(data[:, i])
         ax[i, 1].plot(data[:, i])
-        ax[i, 1].scatter(qrs_locs, data[qrs_locs, i], marker="o", color="red")
+        ax[i, 1].scatter(qrs_locs, data[qrs_locs, i], marker="x", color="red")
         ax[i, 0].set_title(f"lead_{i + 1}")
         ax[i, 1].set_title(f"lead_{i + 1}_filtered")
 

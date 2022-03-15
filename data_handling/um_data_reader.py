@@ -51,15 +51,20 @@ class UMDataReader(DataReader):
     def get_r_peaks(
         self,
         reduced_only: bool = False,
+        size: Optional[int] = None,
     ) -> List[pd.DataFrame]:
         peak_indicators: List[pd.DataFrame] = []
-
-        for name in tqdm(self._file_names, total=len(self._file_names)):
+        n = len(self._file_names) if size is None else min(size, len(self._file_names))
+        for name in tqdm(self._file_names, total=n):
             label = self.read_label(file_name=name)
             if reduced_only and label == 2:
                 continue
             r_peaks = pd.read_csv(os.path.join(self._path, "data", name, "rWaveIndices.csv"))
             peak_indicators.append(r_peaks)
+
+            if size and len(ds) >= n:
+                break
+
         return peak_indicators
 
     def read_label(self, file_name: str) -> int:
@@ -86,7 +91,7 @@ class UMDataReader(DataReader):
 
         if valid_leads_only:
             invalid_electrodes = pd.read_csv(os.path.join(file_path, "invalidelectrodes.txt"), header=None)
-            invalid_electrodes = invalid_electrodes.items.tolist()
+            invalid_electrodes = invalid_electrodes[0].values.tolist()
             x.drop(columns=invalid_electrodes, inplace=True)
         return x
 
@@ -96,8 +101,8 @@ if __name__ == "__main__":
     path = "../matlab_src/"
     reader = UMDataReader(path=path)
 
-    ds = reader.get_dataset(reduced_only=False, load_cancelled_data=True, valid_leads_only=False, size=1)
+    ds = reader.get_dataset(reduced_only=False, load_cancelled_data=True, valid_leads_only=True, size=1)
 
-    peaks = reader.get_r_peaks(reduced_only=False)
+    peaks = reader.get_r_peaks(reduced_only=False, size=1)
 
     print("Done!")

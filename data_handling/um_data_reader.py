@@ -90,9 +90,12 @@ class UMDataReader(DataReader):
             x = pd.read_csv(os.path.join(file_path, "ecgData.csv"))
 
         if valid_leads_only:
-            invalid_electrodes = pd.read_csv(os.path.join(file_path, "invalidelectrodes.txt"), header=None)
-            invalid_electrodes = invalid_electrodes[0].values.tolist()
-            x.drop(columns=invalid_electrodes, inplace=True)
+            try:
+                invalid_electrodes = pd.read_csv(os.path.join(file_path, "invalidelectrodes.txt"), header=None)
+                invalid_electrodes = invalid_electrodes[0].values.tolist()
+                x.drop(columns=invalid_electrodes, inplace=True)
+            except FileNotFoundError:
+                pass
         return x
 
 

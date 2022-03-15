@@ -16,8 +16,9 @@ def plot_rp(
     if ax is None or fig is None:
         fig, ax = plt.subplots(*args, **kwargs)
 
-    pos = ax.imshow(rp_data)
+    cmap = kwargs.get("cmap")
+    pos = ax.imshow(rp_data, cmap)
     fig.colorbar(pos, ax=ax)
-
+    ax.set_axis_off()
     if ax is None or fig is None:
         plt.show()

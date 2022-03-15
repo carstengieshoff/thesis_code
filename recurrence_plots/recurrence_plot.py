@@ -1,14 +1,18 @@
 from __future__ import annotations
 
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Literal, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
+import numpy
 import numpy as np
 from scipy.spatial.distance import cdist
 from tqdm import tqdm
 
 from embeddings.lag_emebedding import Embedding
+from recurrence_plots.utils import image_histogram_equalization
 from visualizations import plot_rp
+
+ThresholdOptions = Literal["relative", "absolute"]
 
 CDIST_OPTIONS = [
     "braycurtis",
@@ -49,8 +53,30 @@ class RecurrencePlot:
         self._unthresholded_rp = (self._unthresholded_rp - min_dist) / (max_dist - min_dist)
         return self
 
-    def get_rp(self, thresholded: bool = False, epsilon: Optional[float] = None) -> np.ndarray:
-        if not thresholded:
+    def sigmoid(self) -> RecurrencePlot:
+        self.normalize()
+        self._unthresholded_rp = 1 / (1 + np.exp(-1 * (self._unthresholded_rp + 0.5)))
+        self.normalize()
+        return self
+
+    def square(self) -> RecurrencePlot:
+        self.normalize()
+        self._unthresholded_rp = self._unthresholded_rp**2
+        self.normalize()
+        return self
+
+    def sqrt(self) -> RecurrencePlot:
+        self.normalize()
+        self._unthresholded_rp = self._unthresholded_rp**0.5
+        self.normalize()
+        return self
+
+    def hist_eq(self) -> RecurrencePlot:
+        self._unthresholded_rp = image_histogram_equalization(self._unthresholded_rp)
+        return self
+
+    def get_rp(self, threshold: Optional[ThresholdOptions] = None, epsilon: Optional[float] = None) -> np.ndarray:
+        if threshold is None:
             return self._unthresholded_rp
         else:
             if epsilon is None:
@@ -60,20 +86,30 @@ class RecurrencePlot:
                 raise ValueError(f"`epsilon` must lie in (0, 1), got {epsilon}")
 
             self.normalize()
-            mask = self._unthresholded_rp <= epsilon
+            if threshold == "absolute":
+                mask = self._unthresholded_rp <= epsilon
+            elif threshold == "relative":
+                mask = self._unthresholded_rp <= np.quantile(self._unthresholded_rp, epsilon)
+            else:
+                raise ValueError("Unrecognized value for `threshold`")
+
             thresholded_rp = np.zeros_like(self._unthresholded_rp)
             thresholded_rp[mask] = 1
 
             return thresholded_rp
 
-    def show(self, thresholded: bool = False, epsilon: Optional[float] = None, *args: Any, **kwargs: Any) -> None:
-        rp_data = self.get_rp(thresholded=thresholded, epsilon=epsilon)
+    def show(
+        self, threshold: Optional[ThresholdOptions] = None, epsilon: Optional[float] = None, *args: Any, **kwargs: Any
+    ) -> None:
+        rp_data = self.get_rp(threshold=threshold, epsilon=epsilon)
         # type ignore : See https://github.com/python/mypy/issues/6799
         plot_rp(rp_data=rp_data, *args, **kwargs)  # type: ignore
 
-    def hist(self, thresholded: bool = False, epsilon: Optional[float] = None, *args: Any, **kwargs: Any) -> None:
+    def hist(
+        self, threshold: Optional[ThresholdOptions] = None, epsilon: Optional[float] = None, *args: Any, **kwargs: Any
+    ) -> None:
         fig, ax = plt.subplots(1, 1)
-        ax.hist(self.get_rp(thresholded=thresholded, epsilon=epsilon).flatten(), *args, **kwargs)
+        ax.hist(self.get_rp(threshold=threshold, epsilon=epsilon).flatten(), *args, **kwargs)
         plt.show()
 
     @property
@@ -170,18 +206,22 @@ if __name__ == "__main__":
     rp = calculator.generate(signal=sinusoid_signal)
     end = time.time()
     print("Elapsed = %s" % (end - start))
-    rp.normalize()
 
     fig = plt.figure()
 
     ax = plt.subplot(212)
     ax.plot(sinusoid_signal)
 
-    ax = plt.subplot(221)
+    ax = plt.subplot(231)
     plot_rp(rp.get_rp(), fig=fig, ax=ax)
 
-    ax = plt.subplot(222)
-    plot_rp(rp.get_rp(thresholded=True, epsilon=0.1), fig=fig, ax=ax)
+    ax = plt.subplot(232)
+    plot_rp(rp.get_rp(threshold="relative", epsilon=0.1), fig=fig, ax=ax, cmap="gray")
+
+    rp.hist_eq()
+
+    ax = plt.subplot(233)
+    plot_rp(rp.get_rp(), fig=fig, ax=ax)
 
     plt.show()
 

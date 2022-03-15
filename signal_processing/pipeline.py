@@ -1,6 +1,7 @@
 from typing import Any, List
 
 import numpy as np
+from scipy.signal import resample
 from tqdm import tqdm
 
 from data_handling.data_reader import DataPoint
@@ -26,6 +27,15 @@ class SignalProcessingPipeline:
             if normalize:
                 rp.normalize()
             ds_new.append(DataPoint(np.expand_dims(rp.get_rp(*args, **kwargs), axis=0), y))
+
+        self.dataset = ds_new
+
+    def resample(self, new_size: int) -> None:
+
+        ds_new = []
+        for x, y in tqdm(self.dataset, total=len(self.dataset)):
+            x_new = resample(x, new_size, axis=0)
+            ds_new.append(DataPoint(x_new, y))
 
         self.dataset = ds_new
 

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy
 import numpy as np
 from scipy.spatial.distance import cdist
+from skimage.transform import resize
 from tqdm import tqdm
 
 from embeddings.lag_emebedding import Embedding
@@ -41,6 +42,14 @@ CDIST_OPTIONS = [
 ]
 
 
+def normalize(data: np.array) -> np.array:
+    """Linear transform all distances in the RP to the interval (0,1)."""
+    min_dist = np.min(data)
+    max_dist = np.max(data)
+    data = (data - min_dist) / (max_dist - min_dist)
+    return data
+
+
 class RecurrencePlot:
     def __init__(self, rp_data: np.ndarray, info: Optional[str] = None):
         self._unthresholded_rp = rp_data
@@ -48,9 +57,7 @@ class RecurrencePlot:
 
     def normalize(self) -> RecurrencePlot:
         """Linear transform all distances in the RP to the interval (0,1)."""
-        min_dist = np.min(self._unthresholded_rp)
-        max_dist = np.max(self._unthresholded_rp)
-        self._unthresholded_rp = (self._unthresholded_rp - min_dist) / (max_dist - min_dist)
+        self._unthresholded_rp = normalize(self._unthresholded_rp)
         return self
 
     def sigmoid(self) -> RecurrencePlot:
@@ -75,9 +82,17 @@ class RecurrencePlot:
         self._unthresholded_rp = image_histogram_equalization(self._unthresholded_rp)
         return self
 
-    def get_rp(self, threshold: Optional[ThresholdOptions] = None, epsilon: Optional[float] = None) -> np.ndarray:
+    def get_rp(
+        self,
+        threshold: Optional[ThresholdOptions] = None,
+        epsilon: Optional[float] = None,
+        size: Optional[Tuple[int, int]] = None,
+    ) -> np.ndarray:
         if threshold is None:
-            return self._unthresholded_rp
+            rp_data = self._unthresholded_rp
+            if size:
+                rp_data = normalize(resize(rp_data, size))
+            return rp_data
         else:
             if epsilon is None:
                 raise RuntimeError("For the option `thresholded` a `epsilon` must be specified.")
@@ -96,12 +111,20 @@ class RecurrencePlot:
             thresholded_rp = np.zeros_like(self._unthresholded_rp)
             thresholded_rp[mask] = 1
 
+            if size:
+                thresholded_rp = normalize(resize(thresholded_rp, size))
+
             return thresholded_rp
 
     def show(
-        self, threshold: Optional[ThresholdOptions] = None, epsilon: Optional[float] = None, *args: Any, **kwargs: Any
+        self,
+        threshold: Optional[ThresholdOptions] = None,
+        epsilon: Optional[float] = None,
+        size: Optional[Tuple[int, int]] = (512, 512),
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
-        rp_data = self.get_rp(threshold=threshold, epsilon=epsilon)
+        rp_data = self.get_rp(threshold=threshold, epsilon=epsilon, size=size)
         # type ignore : See https://github.com/python/mypy/issues/6799
         plot_rp(rp_data=rp_data, *args, **kwargs)  # type: ignore
 

@@ -26,11 +26,11 @@ class NatureReader(DataReader):
 
     def get_dataset(self, max_per_group: int = 10000) -> List[DataPoint]:
         ds: List[DataPoint] = []
+        num_read_per_label: Dict[str, int] = dict()
 
         for ref in tqdm(self._info.keys(), total=len(self._info)):
             data = self.get_data_from_reference(ref).astype(self._dtype)
 
-            num_read_per_label: Dict[str, int] = dict()
             label = self.get_label_from_reference(ref)
             if label == "SB" and not self._with_sb:
                 continue

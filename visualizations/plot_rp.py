@@ -14,13 +14,18 @@ def plot_rp(
     *args: Any,
     **kwargs: Any,
 ) -> None:
+
     if ax is None or fig is None:
+        fig_and_ax_not_given = True
         fig, ax = plt.subplots(*args, **kwargs)
+    else:
+        fig_and_ax_not_given = False
 
     cmap = kwargs.get("cmap")
     pos = ax.imshow(rp_data, cmap)
     if colorbar:
         fig.colorbar(pos, ax=ax)
     ax.set_axis_off()
-    if ax is None or fig is None:
+
+    if fig_and_ax_not_given:
         plt.show()

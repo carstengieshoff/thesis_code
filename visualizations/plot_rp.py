@@ -10,6 +10,7 @@ def plot_rp(
     rp_data: np.array,
     ax: Optional[Axes] = None,
     fig: Optional[Figure] = None,
+    colorbar: bool = False,
     *args: Any,
     **kwargs: Any,
 ) -> None:
@@ -18,7 +19,8 @@ def plot_rp(
 
     cmap = kwargs.get("cmap")
     pos = ax.imshow(rp_data, cmap)
-    fig.colorbar(pos, ax=ax)
+    if colorbar:
+        fig.colorbar(pos, ax=ax)
     ax.set_axis_off()
     if ax is None or fig is None:
         plt.show()

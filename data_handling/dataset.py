@@ -24,11 +24,16 @@ class Dataset:
         self._recurrence_plots: Optional[np.array] = rps
 
     def calc_rps(
-        self, rp_calculator: RecurrencePlotCalculator, normalize: bool = True, *args: Any, **kwargs: Any
+        self,
+        rp_calculator: RecurrencePlotCalculator,
+        normalize: bool = True,
+        dtype: str = "float32",
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         rp_shape = rp_calculator.generate(np.zeros(shape=self.signal_shape)).get_rp(*args, **kwargs).shape
 
-        self._recurrence_plots = np.zeros(shape=(self.__len__(), 1, *rp_shape))
+        self._recurrence_plots = np.zeros(shape=(self.__len__(), 1, *rp_shape), dtype=dtype)
         del rp_shape
 
         for i, x in enumerate(tqdm(self._signals, total=len(self._signals))):

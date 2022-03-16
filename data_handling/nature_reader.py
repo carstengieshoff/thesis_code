@@ -41,11 +41,9 @@ class NatureReader(DataReader):
             else:
                 num_read_per_label[label] = 0
 
-            if num_read_per_label[label] > max_per_group:
-                continue
-
-            label_as_int = self.label_to_int[label]
-            ds.append(DataPoint(data, label_as_int))
+            if num_read_per_label[label] <= max_per_group:
+                label_as_int = self.label_to_int[label]
+                ds.append(DataPoint(data, label_as_int))
 
             if self._accepted_labels is not None:
                 if len(ds) == max_per_group * len(self._accepted_labels):

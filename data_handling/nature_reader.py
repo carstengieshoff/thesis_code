@@ -14,6 +14,7 @@ class NatureReader(DataReader):
         path: Union[str, Path],
         use: str = "noisy",
         with_sb: bool = False,
+        dtype: str = "float32",
         read_labels: Optional[List[str]] = None,
     ):
         super().__init__(path=path)
@@ -21,18 +22,30 @@ class NatureReader(DataReader):
         self._info, self.label_to_int, self.int_to_label = self._read_info()
         self._with_sb = with_sb
         self._accepted_labels = read_labels
+        self._dtype = dtype
 
-    def get_dataset(self) -> List[DataPoint]:
+    def get_dataset(self, max_per_group: int = 10000) -> List[DataPoint]:
         ds: List[DataPoint] = []
 
         for ref in tqdm(self._info.keys(), total=len(self._info)):
-            data = self.get_data_from_reference(ref)
-            if self.get_label_from_reference(ref) == "SB" and not self._with_sb:
+            data = self.get_data_from_reference(ref).astype(self._dtype)
+
+            num_read_per_label: Dict[str, int] = dict()
+            label = self.get_label_from_reference(ref)
+            if label == "SB" and not self._with_sb:
                 continue
-            if self._accepted_labels is not None and self.get_label_from_reference(ref) not in self._accepted_labels:
+            if self._accepted_labels is not None and label not in self._accepted_labels:
                 continue
-            label = self.label_to_int[self.get_label_from_reference(ref)]
-            ds.append(DataPoint(data, label))
+            if label in num_read_per_label.keys():
+                num_read_per_label[label] += 1
+            else:
+                num_read_per_label[label] = 0
+
+            if num_read_per_label[label] > max_per_group:
+                continue
+
+            label_as_int = self.label_to_int[label]
+            ds.append(DataPoint(data, label_as_int))
 
         return ds
 

@@ -1,14 +1,12 @@
-from typing import Any, List
+import logging
+from typing import List, Optional
 
 import numpy as np
-from scipy.signal import resample
+from scipy.signal import filtfilt, resample
 from tqdm import tqdm
 
 from data_handling.data_reader import DataPoint
-from embeddings.utils import fnn, mutual_information
-from recurrence_plots import RecurrencePlotCalculator
-from signal_processing import QRSEstimator, get_r_peaks
-from visualizations import plot_hist2d
+from signal_processing import QRSEstimator, get_r_peaks, split_signal
 
 
 class SignalProcessingPipeline:
@@ -17,22 +15,36 @@ class SignalProcessingPipeline:
         self.Fs = Fs
         self.description = ""
 
-    def calc_rps(
-        self, rp_calculator: RecurrencePlotCalculator, normalize: bool = True, *args: Any, **kwargs: Any
-    ) -> None:
-        self.description += "_" + str(rp_calculator)
+    def filter_signals(self, b: np.array, a: np.array) -> None:
+
         ds_new: List[DataPoint] = []
         for x, y in tqdm(self.dataset, total=len(self.dataset)):
-            rp = rp_calculator.generate(signal=x)
-            if normalize:
-                rp.normalize()
-            ds_new.append(DataPoint(np.expand_dims(rp.get_rp(*args, **kwargs), axis=0), y))
+            x_new = filtfilt(b, a, x, axis=0)
+            ds_new.append(DataPoint(x_new, y))
+
+        self.dataset = ds_new
+
+    def change_labels(self, keep_n: Optional[int] = None) -> None:
+        new_labels = dict()
+
+        labels = set([dp.y for dp in self.dataset])
+        new_labels = {label: i for i, label in enumerate(labels)}
+
+        keep_counter = {label: 0 for label in new_labels.keys()}
+        ds_new = []
+        for x, y in tqdm(self.dataset, total=len(self.dataset)):
+            if keep_n is not None:
+                keep_counter[y] += 1
+                if keep_counter[y] > keep_n:
+                    continue
+
+            ds_new.append(DataPoint(x, new_labels[y]))
 
         self.dataset = ds_new
 
     def resample(self, new_size: int) -> None:
 
-        ds_new = []
+        ds_new: List[DataPoint] = []
         for x, y in tqdm(self.dataset, total=len(self.dataset)):
             x_new = resample(x, new_size, axis=0)
             ds_new.append(DataPoint(x_new, y))
@@ -42,15 +54,44 @@ class SignalProcessingPipeline:
     def remove_qrs(self, qrs_estimator: QRSEstimator) -> None:
 
         ds_new: List[DataPoint] = []
+        excluded = 0
         for x, y in tqdm(self.dataset, total=len(self.dataset)):
             try:
                 qrs_locs = get_r_peaks(x[:, 0], self.Fs)
-                _, b = qrs_estimator(x, qrs_locs)
-                # for window in range(b.shape[1]):
-                window = 0
-                ds_new.append(DataPoint(b[:, window, :].T, y))
+                x_new = qrs_estimator.reconstruct(x, qrs_locs)
+                ds_new.append(DataPoint(x_new, y))
             except IndexError:
-                pass
+                excluded += 1
+
+            if excluded > 0:
+                logging.info(f"{excluded} signals were excluded due to issues in determining r-peaks")
+
+        self.dataset = ds_new
+
+    def normalize(self, with_std: bool = False) -> None:
+        ds_new: List[DataPoint] = []
+        for x, y in tqdm(self.dataset, total=len(self.dataset)):
+            x_new = x - x.mean(axis=0)
+            if with_std:
+                x_new = x_new / x_new.std(axis=0)
+            ds_new.append(DataPoint(x_new, y))
+
+        self.dataset = ds_new
+
+    def split_signals(self, back: int, front: int) -> None:
+        excluded = 0
+        ds_new: List[DataPoint] = []
+        for x, y in tqdm(self.dataset, total=len(self.dataset)):
+            try:
+                qrs_locs = get_r_peaks(x[:, 0], self.Fs)
+                windowed_signal = split_signal(signal=x, r_peaks=qrs_locs, back=back, front=front)
+                for window in range(windowed_signal.shape[1]):
+                    ds_new.append(DataPoint(windowed_signal[:, window, :].T, y))
+            except IndexError:
+                excluded += 1
+
+                if excluded > 0:
+                    logging.info(f"{excluded} signals were excluded due to issues in determining r-peaks")
 
         self.dataset = ds_new
 
@@ -62,28 +103,6 @@ class SignalProcessingPipeline:
 
     def save_dataset(self) -> None:
         pass
-
-    def get_ebedding_info(self, num_samples: int = 0, *args: Any, **kwargs: Any) -> None:
-        # TODO: Add option to plot this for any group of labels
-        import random
-
-        if num_samples > 0:
-            sample = random.sample(self.dataset, k=num_samples)
-        else:
-            sample = self.dataset
-
-        lags = []
-        dims = []
-        for x, y in tqdm(sample, total=len(sample)):
-            lag = mutual_information(signal=x)
-            dim = fnn(signal=x, lag=lag)
-
-            lags.append(lag)
-            dims.append(dim)
-        lags = np.array(lags, dtype="uint8")
-        dims = np.array(dims, dtype="uint8")
-
-        plot_hist2d(lags, dims, ylabel="lag", xlabel="dims", figsize=(20, 20))
 
     def _check_all_signals_same_shape(self) -> bool:
         """Check if all signals in `dataset` have the same length."""

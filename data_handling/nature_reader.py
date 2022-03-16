@@ -47,6 +47,10 @@ class NatureReader(DataReader):
             label_as_int = self.label_to_int[label]
             ds.append(DataPoint(data, label_as_int))
 
+            if self._accepted_labels is not None:
+                if len(ds) == max_per_group * len(self._accepted_labels):
+                    break
+
         return ds
 
     def get_data_from_reference(self, ref: str) -> np.ndarray:

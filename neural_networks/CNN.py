@@ -38,13 +38,15 @@ class CNN(nn.Module):  # type: ignore
 
             for i, data in enumerate(trainloader, 0):
                 inputs, labels = data
+                labels = labels.to(device)
+                inputs = inputs.to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
                 # forward + backward + optimize
-                outputs = self.forward(inputs.float().to(device))
-                loss = criterion(outputs, labels.long().to(device))
+                outputs = self.forward(inputs.float())
+                loss = criterion(outputs.to(device), labels.long())
                 loss.backward()
                 optimizer.step()
 
@@ -67,12 +69,14 @@ class CNN(nn.Module):  # type: ignore
         with torch.no_grad():
             for data in loader:
                 images, labels = data
+                labels = labels.to(device)
+                images = images.to(device)
                 # calculate outputs by running images through the network
-                outputs = self.forward(images.float().to(device))
+                outputs = self.forward(images.float())
                 # the class with the highest energy is what we choose as prediction
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
-                correct += (predicted == labels).sum().item()
+                correct += (predicted == labels.to(device)).sum().item()
 
         return 100 * correct // total
 
@@ -93,6 +97,8 @@ class CNN(nn.Module):  # type: ignore
         predicted_label: List[int] = []
         with torch.no_grad():
             for x, y in loader:
+                y = y.to(device)
+                x = x.to(device)
                 outputs = self.forward(x.float().to(device))
                 _, predicted = torch.max(outputs.data, 1)
 

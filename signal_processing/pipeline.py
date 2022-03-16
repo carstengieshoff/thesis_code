@@ -6,7 +6,9 @@ from scipy.signal import filtfilt, resample
 from tqdm import tqdm
 
 from data_handling.data_reader import DataPoint
-from signal_processing import QRSEstimator, get_r_peaks, split_signal
+from signal_processing.fixed_window_signal_splitting import split_signal
+from signal_processing.qrs_cancellation import QRSEstimator
+from signal_processing.r_peak_detection import get_r_peaks
 
 
 class SignalProcessingPipeline:

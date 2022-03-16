@@ -8,6 +8,11 @@ from signal_processing.qrs_cancellation import QRSEstimator
 from signal_processing.r_peak_detection import get_r_peaks
 
 __all__ = [
+    "Byest",
+    "detqrs3",
+    "get_rr_intervals",
+    "split_signal",
+    "normalize",
     "PCA",
     "detqrs3",
     "Byest",
@@ -15,6 +20,5 @@ __all__ = [
     "split_signal",
     "get_rr_intervals",
     "QRSEstimator",
-    "normalize",
     "SignalProcessingPipeline",
 ]

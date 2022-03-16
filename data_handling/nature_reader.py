@@ -29,7 +29,6 @@ class NatureReader(DataReader):
         num_read_per_label: Dict[str, int] = dict()
 
         for ref in tqdm(self._info.keys(), total=len(self._info)):
-            data = self.get_data_from_reference(ref).astype(self._dtype)
 
             label = self.get_label_from_reference(ref)
             if label == "SB" and not self._with_sb:
@@ -43,6 +42,7 @@ class NatureReader(DataReader):
 
             if num_read_per_label[label] <= max_per_group:
                 label_as_int = self.label_to_int[label]
+                data = self.get_data_from_reference(ref).astype(self._dtype)
                 ds.append(DataPoint(data, label_as_int))
 
             if self._accepted_labels is not None:

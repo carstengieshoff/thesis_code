@@ -48,6 +48,10 @@ class CNN(nn.Module):  # type: ignore
                 # forward + backward + optimize
                 outputs = self.forward(inputs.float())
                 loss = criterion(outputs.to(device), labels.long())
+                if loss.isnan().any():
+                    print(inputs, labels)
+                    raise RuntimeError("nans in loss")
+
                 loss.backward()
                 optimizer.step()
 

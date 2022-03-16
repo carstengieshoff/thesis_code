@@ -29,6 +29,8 @@ class Dataset:
         rp_shape = rp_calculator.generate(np.zeros(shape=self.signal_shape)).get_rp(*args, **kwargs).shape
 
         self._recurrence_plots = np.zeros(shape=(self.__len__(), 1, *rp_shape))
+        del rp_shape
+
         for i, x in enumerate(tqdm(self._signals, total=len(self._signals))):
             rp = rp_calculator.generate(signal=x)
             if normalize:

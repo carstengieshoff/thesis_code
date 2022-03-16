@@ -1,9 +1,12 @@
 from typing import Any, List
 
+import pandas as pd
+import seaborn as sn
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from matplotlib import pyplot as plt
+from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader
 
 
@@ -23,6 +26,7 @@ class CNN(nn.Module):  # type: ignore
         validationloader: DataLoader,
         optimizer: optim.Optimizer,
         criterion: nn.Module,
+        device: torch.device,
         show_every_n: int = 100,
         plot_loss: bool = True,
         *args: Any,
@@ -39,23 +43,24 @@ class CNN(nn.Module):  # type: ignore
                 optimizer.zero_grad()
 
                 # forward + backward + optimize
-                outputs = self.forward(inputs.float())
-                loss = criterion(outputs, labels.long())
+                outputs = self.forward(inputs.float().to(device))
+                loss = criterion(outputs, labels.long().to(device))
                 loss.backward()
                 optimizer.step()
 
                 # print statistics
                 running_loss.append(loss.item())
-                if i % show_every_n == (show_every_n - 1):  # print every 2000 mini-batches
-                    print(f"[{epoch + 1}, {i + 1:5d}] loss: {(sum(running_loss)/len(running_loss)):.3f}")
+                if i % show_every_n == (show_every_n - 1):
+                    self.losses.append(sum(running_loss) / len(running_loss))
+                    print(f"[{epoch + 1}, {i + 1:5d}] loss: {self.losses[-1]:.3f}")
                     running_loss = []
                     if validationloader:
-                        self.val_acc.append(self.evaluate_nn(validationloader))
+                        self.val_acc.append(self.evaluate_nn(validationloader, device=device))
 
         if plot_loss:
             self.plot_loss(*args, **kwargs)
 
-    def evaluate_nn(self, loader: DataLoader) -> float:
+    def evaluate_nn(self, loader: DataLoader, device: torch.device) -> float:
         correct = 0
         total = 0
 
@@ -63,7 +68,7 @@ class CNN(nn.Module):  # type: ignore
             for data in loader:
                 images, labels = data
                 # calculate outputs by running images through the network
-                outputs = self.forward(images.float())
+                outputs = self.forward(images.float().to(device))
                 # the class with the highest energy is what we choose as prediction
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
@@ -81,4 +86,23 @@ class CNN(nn.Module):  # type: ignore
             ax.plot(self.val_acc, label="validation")
 
         ax.legend()
+        plt.show()
+
+    def show_confusion_matrix(self, loader: DataLoader, device: torch.device) -> None:
+        true_label: List[int] = []
+        predicted_label: List[int] = []
+        with torch.no_grad():
+            for x, y in loader:
+                outputs = self.forward(x.float().to(device))
+                _, predicted = torch.max(outputs.data, 1)
+
+                true_label = true_label + y.tolist()
+                predicted_label = predicted_label + predicted.tolist()
+
+        cm = confusion_matrix(true_label, predicted_label)
+        cm = pd.DataFrame(cm)
+        plt.figure(figsize=(10, 7))
+        sn.heatmap(cm, annot=True)
+        plt.xlabel("predicted")
+        plt.ylabel("true")
         plt.show()

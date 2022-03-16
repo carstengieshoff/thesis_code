@@ -1,5 +1,6 @@
 from typing import Any, List
 
+import numpy as np
 import pandas as pd
 import seaborn as sn
 import torch
@@ -85,7 +86,9 @@ class CNN(nn.Module):  # type: ignore
         plt.figure(*args, **kwargs)
 
         ax = plt.subplot(111)
-        ax.plot(self.losses, label="loss")
+        losses = np.array(self.losses)
+        losses_scaled = 100 * losses / losses.max()
+        ax.plot(losses_scaled, label="loss")
         if self.val_acc:
             ax.plot(self.val_acc, label="validation")
 

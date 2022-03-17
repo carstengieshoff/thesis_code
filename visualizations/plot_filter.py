@@ -17,7 +17,7 @@ def plot_filter(
     *args: Any,
     **kwargs: Any,
 ) -> None:
-    freq, h = freqz(b, a, fs=Fs)
+    freq, h = freqz(b, a)
 
     if ax is None or fig is None:
         fig_and_ax_not_given = True

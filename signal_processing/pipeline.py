@@ -6,9 +6,12 @@ from scipy.signal import filtfilt, resample
 from tqdm import tqdm
 
 from data_handling.data_reader import DataPoint
+from signal_processing.detqrs import detqrs3
 from signal_processing.fixed_window_signal_splitting import split_signal
 from signal_processing.qrs_cancellation import QRSEstimator
 from signal_processing.r_peak_detection import get_r_peaks
+
+logging.basicConfig(level=logging.INFO)
 
 
 class SignalProcessingPipeline:
@@ -53,13 +56,16 @@ class SignalProcessingPipeline:
 
         self.dataset = ds_new
 
-    def remove_qrs(self, qrs_estimator: QRSEstimator) -> None:
+    def remove_qrs(self, qrs_estimator: QRSEstimator, r_peak_detector: str = "detqrs3") -> None:
 
         ds_new: List[DataPoint] = []
         excluded = 0
         for x, y in tqdm(self.dataset, total=len(self.dataset)):
             try:
-                qrs_locs = get_r_peaks(x[:, 0], self.Fs)
+                if r_peak_detector == "detqrs3":
+                    qrs_locs = detqrs3(x[:, 0], self.Fs)
+                else:
+                    qrs_locs = get_r_peaks(x[:, 0], self.Fs)
                 x_new = qrs_estimator.reconstruct(x, qrs_locs)
                 ds_new.append(DataPoint(x_new, y))
             except IndexError:

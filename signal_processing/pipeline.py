@@ -71,8 +71,8 @@ class SignalProcessingPipeline:
             except IndexError:
                 excluded += 1
 
-            if excluded > 0:
-                logging.info(f"{excluded} signals were excluded due to issues in determining r-peaks")
+        if excluded > 0:
+            logging.info(f"{excluded} signals were excluded due to issues in determining r-peaks")
 
         self.dataset = ds_new
 

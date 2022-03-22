@@ -24,7 +24,7 @@ def split_signal(
         raise RuntimeError(f"The specified window size cannot extend {r_diffs.min()}, got {window_size}")
 
     r_peaks = r_peaks[front <= r_peaks]
-    r_peaks = r_peaks[r_peaks < signal_len - back - 1]
+    r_peaks = r_peaks[r_peaks <= signal_len - back - 1]
 
     windowed_signal = np.zeros(shape=(signal_dim, r_peaks.shape[0], window_size))
     for i, peak in enumerate(r_peaks):

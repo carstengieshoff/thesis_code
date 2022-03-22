@@ -1,3 +1,4 @@
+from signal_processing.asvc import ASVCancellator
 from signal_processing.byest import Byest
 from signal_processing.detqrs import detqrs3
 from signal_processing.fixed_window_signal_splitting import get_rr_intervals, split_signal
@@ -21,4 +22,5 @@ __all__ = [
     "get_rr_intervals",
     "QRSEstimator",
     "SignalProcessingPipeline",
+    "ASVCancellator",
 ]

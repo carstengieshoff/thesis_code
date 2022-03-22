@@ -17,6 +17,8 @@ class ASVCancellator:
         r_peaks: np.array,
         verbose: bool = False,
         fit: str = "normal",
+        P: int = 40,
+        M: int = 20,
         *args: Any,
         **kwargs: Any,
     ) -> np.array:
@@ -59,7 +61,7 @@ class ASVCancellator:
 
         # fit transitions
         aa_signal = self._subtract_template(
-            windowed_signal=X, template=template_fitted, P=40, M=20, smooth_transitions=False
+            windowed_signal=X, template=template_fitted, P=P, M=M, smooth_transitions=False
         )
 
         aa_signal_reconstructed = self._reconstruct(aa_signal, signal_padded, r_peaks_shifted, front, back)
@@ -86,28 +88,29 @@ class ASVCancellator:
         fig, ax = plt.subplots(n_leads, 4, figsize=(50, 60))
         plt.title("QRST-cancellation using Adaptive Singluar Value Cancellation", fontsize=30)
         if n_leads > 1:
-            for i in range(n_leads):
-                ax[i, 0].plot(original_signal[:, i], label="original")
-                ax[i, 0].scatter(r_peaks, original_signal[r_peaks, i], marker="o", color="red", label="r-peaks")
-                ax[i, 0].set_title(f"lead_{i + 1}")
-                ax[i, 0].legend()
+            for lead in range(n_leads):
+                ax[lead, 0].plot(original_signal[:, lead], label="original")
+                ax[lead, 0].scatter(r_peaks, original_signal[r_peaks, lead], marker="o", color="red", label="r-peaks")
+                ax[lead, 0].set_title(f"lead_{lead + 1}")
+                ax[lead, 0].legend()
 
-                ax[i, 1].plot(transformed_signal[:, i])
-                ax[i, 1].set_title("AA")
+                ax[lead, 1].plot(transformed_signal[:, lead])
+                ax[lead, 1].set_title("AA")
 
-                ax[i, 2].plot(
-                    original_signal[:, i] - transformed_signal[:, i],
+                ax[lead, 2].plot(
+                    original_signal[:, lead] - transformed_signal[:, lead],
                 )
-                ax[i, 2].set_title("VA (orig-AA)")
+                ax[lead, 2].set_title("VA (orig-AA)")
 
-                ax[i, 3].plot(template[i, 0, :])
-                ax[i, 3].set_title("lead-template")
+                ax[lead, 3].plot(template[lead, 0, :])
+                ax[lead, 3].set_title("lead-template")
 
-                for j in range(3):
-                    for peak in r_peaks:
-                        ax[i, j].axvspan(
+                for w, peak in enumerate(r_peaks):
+                    for j in range(3):
+                        ax[lead, j].axvspan(
                             peak - front, peak + back, facecolor="gray", alpha=0.2, label="considered window"
                         )
+                        ax[lead, j].text(x=peak - front, y=transformed_signal[:, lead].max() * 0.8, s=str(w + 1))
 
             plt.show()
 
@@ -129,8 +132,9 @@ class ASVCancellator:
             ax[3].set_title("lead-template")
 
             for j in range(3):
-                for peak in r_peaks:
+                for w, peak in enumerate(r_peaks):
                     ax[j].axvspan(peak - front, peak + back, facecolor="gray", alpha=0.2, label="considered window")
+                    ax[j].text(peak - front, -0.5, str(w + 1), fontsize="x-small")
 
         plt.show()
 
@@ -145,6 +149,12 @@ class ASVCancellator:
         for lead in range(n_leads):
             # subset_idxs = list(range(n_windows)) # to be made more sophistciated
 
+            # CLuster
+            # signals = windowed_signal[lead, :, 150: 500]
+            # normed_ = (signals - signals.mean(axis=1,keepdims=True)) / signals.std(axis=1,keepdims=True)
+            # plt.imshow(cdist(signals, signals, metric ="cosine"))
+            # plt.title(f"lead_{lead+1}")
+            # plt.show()
             U, _, _ = np.linalg.svd(windowed_signal[lead, :, :].T)
             # U = PCA(windowed_signal[lead, :, :].T, var=0.7)
 
@@ -279,7 +289,7 @@ if __name__ == "__main__":
     data_centered = data_centered - data_centered.mean(axis=0)
     fs = 1000
 
-    qrs_locs = detqrs3(data_centered[:, 0], fs)  # get_r_peaks(data_centered[:,0], fs)
+    qrs_locs = detqrs3(data_centered[:, 9], fs)  # get_r_peaks(data_centered[:,0], fs)
     asvc = ASVCancellator()
 
-    data_af = asvc(original_signal=data_centered, r_peaks=qrs_locs, verbose=True, fit="shifted")
+    data_af = asvc(original_signal=data_centered, r_peaks=qrs_locs[1:], verbose=True, fit="shifted", P=20, M=10)

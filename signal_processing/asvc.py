@@ -51,11 +51,11 @@ class ASVCancellator:
         # Fit template to window
         # Fit by amplitude
         if fit == "normal":
-            template_fitted = self._fit_template_to_windows(X, template)
-        elif fit == "lstsq":
             template_fitted = self._fit_template_to_windows_lstsq(X, template, verbose=verbose)
+        elif fit == "shifted":
+            template_fitted = self._fit_template_to_windows_shift_lstsq(X, template, verbose=verbose)
         else:
-            raise RuntimeError(f"Unrecognized option for `fit`. Expected one of `normal`, `lstsq`: got {fit}")
+            raise RuntimeError(f"Unrecognized option for `fit`. Expected one of `normal`, `shifted`: got {fit}")
 
         # fit transitions
         aa_signal = self._subtract_template(
@@ -83,28 +83,54 @@ class ASVCancellator:
     ) -> None:
         signal_len, n_leads = original_signal.shape
 
-        fig, ax = plt.subplots(12, 4, figsize=(50, 60))
+        fig, ax = plt.subplots(n_leads, 4, figsize=(50, 60))
         plt.title("QRST-cancellation using Adaptive Singluar Value Cancellation", fontsize=30)
-        for i in range(n_leads):
-            ax[i, 0].plot(original_signal[:, i], label="original")
-            ax[i, 0].scatter(r_peaks, data_centered[r_peaks, i], marker="o", color="red", label="r-peaks")
-            ax[i, 0].set_title(f"lead_{i + 1}")
-            ax[i, 0].legend()
+        if n_leads > 1:
+            for i in range(n_leads):
+                ax[i, 0].plot(original_signal[:, i], label="original")
+                ax[i, 0].scatter(r_peaks, original_signal[r_peaks, i], marker="o", color="red", label="r-peaks")
+                ax[i, 0].set_title(f"lead_{i + 1}")
+                ax[i, 0].legend()
 
-            ax[i, 1].plot(transformed_signal[:, i])
-            ax[i, 1].set_title("AA")
+                ax[i, 1].plot(transformed_signal[:, i])
+                ax[i, 1].set_title("AA")
 
-            ax[i, 2].plot(
-                original_signal[:, i] - transformed_signal[:, i],
+                ax[i, 2].plot(
+                    original_signal[:, i] - transformed_signal[:, i],
+                )
+                ax[i, 2].set_title("VA (orig-AA)")
+
+                ax[i, 3].plot(template[i, 0, :])
+                ax[i, 3].set_title("lead-template")
+
+                for j in range(3):
+                    for peak in r_peaks:
+                        ax[i, j].axvspan(
+                            peak - front, peak + back, facecolor="gray", alpha=0.2, label="considered window"
+                        )
+
+            plt.show()
+
+        else:
+            ax[0].plot(original_signal, label="original")
+            ax[0].scatter(r_peaks, original_signal[r_peaks, :], marker="o", color="red", label="r-peaks")
+            ax[0].set_title()
+            ax[0].legend()
+
+            ax[1].plot(transformed_signal)
+            ax[1].set_title("AA")
+
+            ax[2].plot(
+                original_signal - transformed_signal,
             )
-            ax[i, 2].set_title("VA (orig-AA)")
+            ax[2].set_title("VA (orig-AA)")
 
-            ax[i, 3].plot(template[i, 0, :])
-            ax[i, 3].set_title("lead-template")
+            ax[3].plot(template[0, 0, :])
+            ax[3].set_title("lead-template")
 
             for j in range(3):
                 for peak in r_peaks:
-                    ax[i, j].axvspan(peak - front, peak + back, facecolor="gray", alpha=0.2, label="considered window")
+                    ax[j].axvspan(peak - front, peak + back, facecolor="gray", alpha=0.2, label="considered window")
 
         plt.show()
 
@@ -115,9 +141,6 @@ class ASVCancellator:
         # template = np.zeros(shape=(n_leads, window_size))
         template = np.zeros_like(windowed_signal)
 
-        if plot_templates:
-            fig, ax = plt.subplots(n_leads, 1, figsize=(10, 35))
-
         # np.linalg.svd can be vectorized // only if we do not take subsets
         for lead in range(n_leads):
             # subset_idxs = list(range(n_windows)) # to be made more sophistciated
@@ -125,25 +148,10 @@ class ASVCancellator:
             U, _, _ = np.linalg.svd(windowed_signal[lead, :, :].T)
             # U = PCA(windowed_signal[lead, :, :].T, var=0.7)
 
-            if plot_templates:
-                ax[lead].plot(U[:, :2])
-                ax[lead].set_title(f"lead_{lead+1}, Pcs: {U.shape}")
-
             template[lead, :, :] = np.broadcast_to(U[:, 0], shape=(n_windows, window_size))
             # template[lead, :, :] = np.broadcast_to(U.sum(axis=1), shape=(n_windows, window_size))
 
-        if plot_templates:
-            plt.show()
-
         return template
-
-    def _fit_template_to_windows(self, windowed_signal: np.array, template: np.array) -> np.array:
-
-        standardized_template = template / (template.max(axis=2, keepdims=True) - template.min(axis=2, keepdims=True))
-        template_aligned = standardized_template * (
-            windowed_signal.max(axis=2, keepdims=True) - windowed_signal.min(axis=2, keepdims=True)
-        )
-        return template_aligned
 
     def _fit_template_to_windows_lstsq(
         self, windowed_signal: np.array, template: np.array, verbose: bool = False
@@ -165,6 +173,40 @@ class ASVCancellator:
                 )
 
         template_aligned = template * np.expand_dims(coeffs[:, :, 0], axis=2) + np.expand_dims(coeffs[:, :, 1], axis=2)
+        return template_aligned
+
+    def _fit_template_to_windows_shift_lstsq(
+        self, windowed_signal: np.array, template: np.array, verbose: bool = False
+    ) -> np.array:
+        assert windowed_signal.shape == template.shape
+        n_leads, n_windows, window_size = windowed_signal.shape
+
+        coeffs = np.zeros(shape=(n_leads, n_windows, 2))
+        template_shifted = template.copy()
+        for lead in range(n_leads):
+            shifts = np.argmax(np.abs(windowed_signal[lead, :, :]), axis=1) - np.argmax(
+                np.abs(template[lead, :, :]), axis=1
+            )
+            shifts = np.where(np.abs(shifts) < 100, shifts, 0)
+            for window in range(n_windows):
+                shift = shifts[window]
+                template_shifted[lead, window, :] = np.roll(template_shifted[lead, window, :], shift=shift)
+
+                design_matrix = np.stack([template_shifted[lead, window, :], np.ones_like(template[lead, window, :])]).T
+                lstq_results = np.linalg.lstsq(a=design_matrix, b=windowed_signal[lead, window, :].T)
+                coeffs[lead, window, :] = lstq_results[0].T
+
+                if verbose:
+                    logging.info(
+                        f"Fitting lead {lead+1}, window {window}:"
+                        f" a,b = {lstq_results[0]},"
+                        f" residual = {lstq_results[1]},"
+                        f" shift {shift}"
+                    )
+
+        template_aligned = template_shifted * np.expand_dims(coeffs[:, :, 0], axis=2) + np.expand_dims(
+            coeffs[:, :, 1], axis=2
+        )
         return template_aligned
 
     def _subtract_template(
@@ -229,7 +271,7 @@ class ASVCancellator:
 if __name__ == "__main__":
     from scipy.io import loadmat
 
-    from signal_processing import detqrs3  # , get_r_peaks
+    from signal_processing import detqrs3
 
     data = loadmat("../tests/data/detqrs_data.mat")
     # qrs_locs = data["qrs_locs"].squeeze() - 1
@@ -240,5 +282,4 @@ if __name__ == "__main__":
     qrs_locs = detqrs3(data_centered[:, 0], fs)  # get_r_peaks(data_centered[:,0], fs)
     asvc = ASVCancellator()
 
-    data_af = asvc(original_signal=data_centered, r_peaks=qrs_locs - 2, verbose=True, fit="lstsq")
-    assert data_af.shape == data_centered.shape
+    data_af = asvc(original_signal=data_centered, r_peaks=qrs_locs, verbose=True, fit="shifted")

@@ -332,7 +332,6 @@ class ASVCancellator:
         M: int,
     ) -> np.array:
         reconstructed_signal = original_signal.copy()
-
         last_window_end_idx = 0
 
         for window, peak in enumerate(r_peaks):
@@ -341,16 +340,25 @@ class ASVCancellator:
 
             if window_start > last_window_end_idx + 1:
                 gap = reconstructed_signal[last_window_end_idx + 1 : window_start, :]
-                gap -= self._linear_from_to(first=gap[0, :], last=gap[-1, :], length=len(gap))
+                gap -= self._linreg(data=gap)
                 reconstructed_signal[last_window_end_idx + 1 : window_start, :] = gap
 
             last_window_end_idx = window_end
 
             reconstructed_signal[window_start:window_end, :] = aa_signal[:, window, :].T
 
+        if last_window_end_idx < reconstructed_signal.shape[0]:
+            gap = reconstructed_signal[last_window_end_idx + 1 :, :]
+            gap -= self._linreg(data=gap)
+            reconstructed_signal[last_window_end_idx + 1 :, :] = gap
+
+        for window, peak in enumerate(r_peaks):
+            window_start = peak - front
+            window_end = peak + back + 1
+
             for lead in range(reconstructed_signal.shape[1]):
-                start = starts_ends[lead, window, 0] + window_start
-                end = starts_ends[lead, window, 1] + window_start
+                start = window_start + starts_ends[lead, window, 0]
+                end = window_start + starts_ends[lead, window, 1]
 
                 M_ = M
                 gaussian_window = gaussian(2 * M_, np.sqrt(2 * M_))
@@ -365,19 +373,18 @@ class ASVCancellator:
                     reconstructed_signal[end - M_ + 1 : end + 1, lead] -= ke * gaussian_window[:M_]
                     reconstructed_signal[end + 1 : end + M_ + 1, lead] += ke * gaussian_window[M_:]
 
-        if last_window_end_idx < reconstructed_signal.shape[0]:
-            gap = reconstructed_signal[last_window_end_idx + 1 :, :]
-            gap -= self._linear_from_to(first=gap[0, :], last=gap[-1, :], length=len(gap))
-            reconstructed_signal[last_window_end_idx + 1 :, :] = gap
-
         return reconstructed_signal
 
-    def _linear_from_to(self, first: np.array, last: np.array, length: int) -> np.array:
-        dim = len(first)
-        first = first.reshape(dim, -1)
-        last = last.reshape(dim, -1)
-        line = first + np.vstack([np.arange(length)] * dim) * (last - first) / (length - 1)
-        return line.T
+    def _linreg(self, data: np.array) -> np.array:
+
+        length, dims = data.shape
+
+        features = np.vstack([np.arange(1, length + 1), np.ones(length)]).T
+        lstq_results = np.linalg.lstsq(a=features, b=data)[0]
+
+        fitted_data = np.dot(features, lstq_results)
+
+        return fitted_data
 
 
 if __name__ == "__main__":

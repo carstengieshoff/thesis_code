@@ -22,6 +22,7 @@ class ASVCancellator:
         M: int = 20,
         use_clustering: bool = False,
         min_cluster_size: Optional[int] = None,
+        savefig: bool = False,
         *args: Any,
         **kwargs: Any,
     ) -> np.array:
@@ -78,8 +79,16 @@ class ASVCancellator:
         # Evaluate (optionally)
 
         if verbose:
+
             self._plot(
-                original_signal, aa_signal_reconstructed_depadded, r_peaks, template_fitted, front, back, cluster_labels
+                original_signal,
+                aa_signal_reconstructed_depadded,
+                r_peaks,
+                template_fitted,
+                front,
+                back,
+                cluster_labels,
+                savefig=savefig,
             )
 
         return aa_signal_reconstructed_depadded
@@ -93,6 +102,7 @@ class ASVCancellator:
         front: int,
         back: int,
         cluster_labels: np.array,
+        savefig: bool = False,
     ) -> None:
         signal_len, n_leads = original_signal.shape
 
@@ -127,7 +137,8 @@ class ASVCancellator:
                             label="considered window",
                         )
                         ax[lead, j].text(x=peak - front, y=transformed_signal[:, lead].max() * 0.8, s=str(w + 1))
-
+            if savefig:
+                plt.savefig("./asvc.png")
             plt.show()
 
         else:
@@ -405,8 +416,9 @@ if __name__ == "__main__":
         original_signal=data_centered,
         r_peaks=qrs_locs[1:],
         verbose=True,
-        fit="shifted",
+        fit="normal",
         P=40,
         M=20,
         use_clustering=False,
+        savefig=True,
     )

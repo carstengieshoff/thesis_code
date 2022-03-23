@@ -1,9 +1,10 @@
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal.windows import gaussian
+from sklearn.cluster import SpectralClustering
 
 from signal_processing.fixed_window_signal_splitting import split_signal
 
@@ -19,6 +20,8 @@ class ASVCancellator:
         fit: str = "normal",
         P: int = 40,
         M: int = 20,
+        use_clustering: bool = False,
+        min_cluster_size: Optional[int] = None,
         *args: Any,
         **kwargs: Any,
     ) -> np.array:
@@ -48,7 +51,10 @@ class ASVCancellator:
 
         # Create Template (lead by lead)
         # Find subset of windows to use (e.g. by similarity, neighbours, clustering)
-        template = self._get_template(X, plot_templates=verbose)
+        min_cluster_size = int(X.shape[1] / 4) if min_cluster_size is None else min_cluster_size
+        template, cluster_labels = self._get_template(
+            X, plot_templates=verbose, use_clustering=use_clustering, min_cluster_size=min_cluster_size
+        )
 
         # Fit template to window
         # Fit by amplitude
@@ -60,17 +66,21 @@ class ASVCancellator:
             raise RuntimeError(f"Unrecognized option for `fit`. Expected one of `normal`, `shifted`: got {fit}")
 
         # fit transitions
-        aa_signal = self._subtract_template(
+        aa_signal, starts_ends = self._subtract_template(
             windowed_signal=X, template=template_fitted, P=P, M=M, smooth_transitions=False
         )
 
-        aa_signal_reconstructed = self._reconstruct(aa_signal, signal_padded, r_peaks_shifted, front, back)
+        aa_signal_reconstructed = self._reconstruct(
+            aa_signal, signal_padded, r_peaks_shifted, front, back, starts_ends, M=M
+        )
 
         aa_signal_reconstructed_depadded = aa_signal_reconstructed[pad_front:-pad_back]
         # Evaluate (optionally)
 
         if verbose:
-            self._plot(original_signal, aa_signal_reconstructed_depadded, r_peaks, template_fitted, front, back)
+            self._plot(
+                original_signal, aa_signal_reconstructed_depadded, r_peaks, template_fitted, front, back, cluster_labels
+            )
 
         return aa_signal_reconstructed_depadded
 
@@ -82,6 +92,7 @@ class ASVCancellator:
         template: np.array,
         front: int,
         back: int,
+        cluster_labels: np.array,
     ) -> None:
         signal_len, n_leads = original_signal.shape
 
@@ -91,24 +102,29 @@ class ASVCancellator:
             for lead in range(n_leads):
                 ax[lead, 0].plot(original_signal[:, lead], label="original")
                 ax[lead, 0].scatter(r_peaks, original_signal[r_peaks, lead], marker="o", color="red", label="r-peaks")
-                ax[lead, 0].set_title(f"lead_{lead + 1}")
+                ax[lead, 0].set_title(f"lead_{lead + 1} Original ECG")
                 ax[lead, 0].legend()
 
                 ax[lead, 1].plot(transformed_signal[:, lead])
-                ax[lead, 1].set_title("AA")
+                ax[lead, 1].set_title("Estimated AA")
 
                 ax[lead, 2].plot(
                     original_signal[:, lead] - transformed_signal[:, lead],
                 )
-                ax[lead, 2].set_title("VA (orig-AA)")
+                ax[lead, 2].set_title("Estimated VA (orig- Estimated AA)")
 
-                ax[lead, 3].plot(template[lead, 0, :])
-                ax[lead, 3].set_title("lead-template")
+                ax[lead, 3].plot(template[lead, :, :].T)
+                ax[lead, 3].set_title(f"lead_{lead+1}-templates")
 
                 for w, peak in enumerate(r_peaks):
                     for j in range(3):
+                        add_intensity = cluster_labels[lead, w] / 5
                         ax[lead, j].axvspan(
-                            peak - front, peak + back, facecolor="gray", alpha=0.2, label="considered window"
+                            peak - front,
+                            peak + back,
+                            facecolor="gray",
+                            alpha=0.2 + add_intensity,
+                            label="considered window",
                         )
                         ax[lead, j].text(x=peak - front, y=transformed_signal[:, lead].max() * 0.8, s=str(w + 1))
 
@@ -138,7 +154,13 @@ class ASVCancellator:
 
         plt.show()
 
-    def _get_template(self, windowed_signal: np.array, plot_templates: bool = True) -> np.array:
+    def _get_template(
+        self,
+        windowed_signal: np.array,
+        plot_templates: bool = True,
+        use_clustering: bool = True,
+        min_cluster_size: int = 5,
+    ) -> np.array:
 
         n_leads, n_windows, window_size = windowed_signal.shape
 
@@ -146,22 +168,36 @@ class ASVCancellator:
         template = np.zeros_like(windowed_signal)
 
         # np.linalg.svd can be vectorized // only if we do not take subsets
+        cluster_labels = np.zeros(shape=(n_leads, n_windows))
         for lead in range(n_leads):
-            # subset_idxs = list(range(n_windows)) # to be made more sophistciated
+            if use_clustering:
+                cluster_labels[lead, :] = self._cluster_complexes(
+                    windowed_signal[lead, :, :], min_cluster_size=min_cluster_size
+                )
+                logging.info(
+                    f"Clustering lead {lead+1}:"
+                    f" into {cluster_labels[lead, :].sum(), n_windows-cluster_labels[lead, :].sum()}"
+                )
+            else:
+                cluster_labels[lead, :] = np.zeros(shape=(n_windows,))
 
-            # CLuster
-            # signals = windowed_signal[lead, :, 150: 500]
-            # normed_ = (signals - signals.mean(axis=1,keepdims=True)) / signals.std(axis=1,keepdims=True)
-            # plt.imshow(cdist(signals, signals, metric ="cosine"))
-            # plt.title(f"lead_{lead+1}")
-            # plt.show()
-            U, _, _ = np.linalg.svd(windowed_signal[lead, :, :].T)
-            # U = PCA(windowed_signal[lead, :, :].T, var=0.7)
+            for i in range(2):
+                cluster_size = (cluster_labels[lead, :] == i).sum()
+                cluster_idxs = cluster_labels[lead, :] == i
+                U, _, _ = np.linalg.svd(windowed_signal[lead, cluster_idxs, :].T)
+                template[lead, cluster_idxs, :] = np.broadcast_to(U[:, 0], shape=(cluster_size, window_size))
 
-            template[lead, :, :] = np.broadcast_to(U[:, 0], shape=(n_windows, window_size))
-            # template[lead, :, :] = np.broadcast_to(U.sum(axis=1), shape=(n_windows, window_size))
+        return template, cluster_labels
 
-        return template
+    def _cluster_complexes(self, windows: np.array, min_cluster_size: int) -> np.array:
+        signals = windows[:, :]
+        # dists = cdist(signals, signals, metric ="correlation")
+        model = SpectralClustering(n_clusters=2).fit(signals)
+        if model.labels_.sum() < min_cluster_size or len(model.labels_) - model.labels_.sum() < min_cluster_size:
+            labels = np.zeros_like(model.labels_)
+        else:
+            labels = model.labels_
+        return labels
 
     def _fit_template_to_windows_lstsq(
         self, windowed_signal: np.array, template: np.array, verbose: bool = False
@@ -183,6 +219,12 @@ class ASVCancellator:
                 )
 
         template_aligned = template * np.expand_dims(coeffs[:, :, 0], axis=2) + np.expand_dims(coeffs[:, :, 1], axis=2)
+
+        # N = 100
+        # weights = gaussian(2*N, std = 2*np.sqrt(N))
+        # template_aligned[:,:,:N] *=weights[:N]
+        # template_aligned[:, :, -N:] *= weights[-N:]
+
         return template_aligned
 
     def _fit_template_to_windows_shift_lstsq(
@@ -202,6 +244,15 @@ class ASVCancellator:
                 shift = shifts[window]
                 template_shifted[lead, window, :] = np.roll(template_shifted[lead, window, :], shift=shift)
 
+                # Ensuring "np.roll" does not create artifacts; values rolled over from the oter end of the array are
+                # replaced more adequately by the last feasible value
+                if shift > 0:
+                    template_shifted[lead, window, :shift] = template_shifted[lead, window, shift]
+                elif shift < 0:
+                    template_shifted[lead, window, shift:] = template_shifted[lead, window, shift - 1]
+                else:
+                    pass
+
                 design_matrix = np.stack([template_shifted[lead, window, :], np.ones_like(template[lead, window, :])]).T
                 lstq_results = np.linalg.lstsq(a=design_matrix, b=windowed_signal[lead, window, :].T)
                 coeffs[lead, window, :] = lstq_results[0].T
@@ -217,6 +268,11 @@ class ASVCancellator:
         template_aligned = template_shifted * np.expand_dims(coeffs[:, :, 0], axis=2) + np.expand_dims(
             coeffs[:, :, 1], axis=2
         )
+
+        # N = 100
+        # weights = gaussian(2*N, std = 2*np.sqrt(N))
+        # template_aligned[:,:,:N] *=weights[:N]
+        # template_aligned[:, :, -N:] *= weights[-N:]
         return template_aligned
 
     def _subtract_template(
@@ -227,9 +283,12 @@ class ASVCancellator:
         M: int,
         smooth_transitions: bool = True,
     ) -> np.array:
+        template = template.copy()
         n_leads, n_windows, window_size = windowed_signal.shape
 
         aa_signal = windowed_signal.copy()
+
+        starts_ends = np.zeros(shape=(n_leads, n_windows, 2), dtype="int")
 
         for lead in range(n_leads):
             for window in range(n_windows):
@@ -243,22 +302,24 @@ class ASVCancellator:
 
                 aa_signal[lead, window, :] -= template[lead, window, :]
 
+                starts_ends[lead, window, :] = np.array([start, end])
+
                 # post-process
-                if start >= 1:
-                    M_ = min(M, start)
-                    gaussian_window = gaussian(2 * M_, np.sqrt(2 * M_))
-                    ks = (aa_signal[lead, window, start - 1] - aa_signal[lead, window, start]) / 2
-                    aa_signal[lead, window, start - M_ : start] -= ks * gaussian_window[:M_]
-                    aa_signal[lead, window, start : start + M_] += ks * gaussian_window[M_:]
-
-                if end < window_size - 1:
-                    M_ = min(M, window_size - end - 1)
-                    gaussian_window = gaussian(2 * M_, np.sqrt(2 * M_))
-                    ke = (aa_signal[lead, window, end] - aa_signal[lead, window, end + 1]) / 2
-                    aa_signal[lead, window, end - M_ + 1 : end + 1] -= ke * gaussian_window[:M_]
-                    aa_signal[lead, window, end + 1 : end + M_ + 1] += ke * gaussian_window[M_:]
-
-        return aa_signal
+                # if start >= 1:
+                #    M_ = min(M, start)
+                #    gaussian_window = gaussian(2 * M_, np.sqrt(M_))
+                #    ks = (aa_signal[lead, window, start - 1] - aa_signal[lead, window, start]) / 2
+                #    aa_signal[lead, window, start - M_ : start] -= ks * gaussian_window[:M_]
+                #    aa_signal[lead, window, start : start + M_] += ks * gaussian_window[M_:]
+        #
+        # if end < window_size - 1:
+        #    M_ = min(M, window_size - end - 1)
+        #    gaussian_window = gaussian(2 * M_, np.sqrt(M_))
+        #    ke = (aa_signal[lead, window, end] - aa_signal[lead, window, end + 1]) / 2
+        #    aa_signal[lead, window, end - M_ + 1 : end + 1] -= ke * gaussian_window[:M_]
+        #    aa_signal[lead, window, end + 1 : end + M_ + 1] += ke * gaussian_window[M_:]
+        #
+        return aa_signal, starts_ends
 
     def _reconstruct(
         self,
@@ -267,15 +328,56 @@ class ASVCancellator:
         r_peaks: np.array,
         front: int,
         back: int,
+        starts_ends: np.array,
+        M: int,
     ) -> np.array:
         reconstructed_signal = original_signal.copy()
 
-        for i, peak in enumerate(r_peaks):
+        last_window_end_idx = 0
+
+        for window, peak in enumerate(r_peaks):
             window_start = peak - front
             window_end = peak + back + 1
-            reconstructed_signal[window_start:window_end, :] = aa_signal[:, i, :].T
+
+            if window_start > last_window_end_idx + 1:
+                gap = reconstructed_signal[last_window_end_idx + 1 : window_start, :]
+                gap -= self._linear_from_to(first=gap[0, :], last=gap[-1, :], length=len(gap))
+                reconstructed_signal[last_window_end_idx + 1 : window_start, :] = gap
+
+            last_window_end_idx = window_end
+
+            reconstructed_signal[window_start:window_end, :] = aa_signal[:, window, :].T
+
+            for lead in range(reconstructed_signal.shape[1]):
+                start = starts_ends[lead, window, 0] + window_start
+                end = starts_ends[lead, window, 1] + window_start
+
+                M_ = M
+                gaussian_window = gaussian(2 * M_, np.sqrt(2 * M_))
+
+                if start > M_:
+                    ks = (reconstructed_signal[start - 1, lead] - reconstructed_signal[start, lead]) / 2
+                    reconstructed_signal[start - M_ : start, lead] -= ks * gaussian_window[:M_]
+                    reconstructed_signal[start : start + M_, lead] += ks * gaussian_window[M_:]
+
+                if end < reconstructed_signal.shape[0] - M_:
+                    ke = (reconstructed_signal[end, lead] - reconstructed_signal[end + 1, lead]) / 2
+                    reconstructed_signal[end - M_ + 1 : end + 1, lead] -= ke * gaussian_window[:M_]
+                    reconstructed_signal[end + 1 : end + M_ + 1, lead] += ke * gaussian_window[M_:]
+
+        if last_window_end_idx < reconstructed_signal.shape[0]:
+            gap = reconstructed_signal[last_window_end_idx + 1 :, :]
+            gap -= self._linear_from_to(first=gap[0, :], last=gap[-1, :], length=len(gap))
+            reconstructed_signal[last_window_end_idx + 1 :, :] = gap
 
         return reconstructed_signal
+
+    def _linear_from_to(self, first: np.array, last: np.array, length: int) -> np.array:
+        dim = len(first)
+        first = first.reshape(dim, -1)
+        last = last.reshape(dim, -1)
+        line = first + np.vstack([np.arange(length)] * dim) * (last - first) / (length - 1)
+        return line.T
 
 
 if __name__ == "__main__":
@@ -292,4 +394,12 @@ if __name__ == "__main__":
     qrs_locs = detqrs3(data_centered[:, 9], fs)  # get_r_peaks(data_centered[:,0], fs)
     asvc = ASVCancellator()
 
-    data_af = asvc(original_signal=data_centered, r_peaks=qrs_locs[1:], verbose=True, fit="shifted", P=20, M=10)
+    data_af = asvc(
+        original_signal=data_centered,
+        r_peaks=qrs_locs[1:],
+        verbose=True,
+        fit="shifted",
+        P=40,
+        M=20,
+        use_clustering=False,
+    )

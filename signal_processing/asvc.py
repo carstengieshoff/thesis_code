@@ -25,6 +25,7 @@ class ASVCancellator:
         M: int = 20,
         use_clustering: bool = False,
         min_cluster_size: Optional[int] = None,
+        plot: bool = True,
         savefig: bool = False,
         *args: Any,
         **kwargs: Any,
@@ -87,7 +88,7 @@ class ASVCancellator:
 
         # Evaluate (optionally)
 
-        if verbose:
+        if verbose or plot:
 
             self._plot(
                 original_signal,

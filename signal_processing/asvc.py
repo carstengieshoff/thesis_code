@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.signal import filtfilt
 from scipy.signal.windows import gaussian
 from sklearn.cluster import SpectralClustering
 
@@ -25,7 +26,10 @@ class ASVCancellator:
         M: int = 20,
         use_clustering: bool = False,
         min_cluster_size: Optional[int] = None,
+        plot: bool = True,
         savefig: bool = False,
+        pos_neg_fit: bool = False,
+        smooth_template: Optional[int] = None,
         *args: Any,
         **kwargs: Any,
     ) -> np.array:
@@ -60,12 +64,18 @@ class ASVCancellator:
             X, plot_templates=verbose, use_clustering=use_clustering, min_cluster_size=min_cluster_size
         )
 
+        if smooth_template is not None:
+            h = np.ones(smooth_template) / smooth_template
+            template = filtfilt(h, 1, template, axis=2)
+
         # Fit template to window
         # Fit by amplitude
         if fit == "normal":
             template_fitted = self._fit_template_to_windows_lstsq(X, template, verbose=verbose)
         elif fit == "shifted":
-            template_fitted = self._fit_template_to_windows_shift_lstsq(X, template, verbose=verbose)
+            template_fitted = self._fit_template_to_windows_shift_lstsq(
+                X, template, verbose=verbose, pos_neg_fit=pos_neg_fit
+            )
         else:
             raise RuntimeError(f"Unrecognized option for `fit`. Expected one of `normal`, `shifted`: got {fit}")
 
@@ -78,7 +88,6 @@ class ASVCancellator:
             aa_signal, signal_padded, r_peaks_shifted, front, back, starts_ends, M=M
         )
 
-        print(pad_front, pad_back)
         if pad_front > 0:
             aa_signal_reconstructed = aa_signal_reconstructed[pad_front:]
 
@@ -87,7 +96,7 @@ class ASVCancellator:
 
         # Evaluate (optionally)
 
-        if verbose:
+        if verbose or plot:
 
             self._plot(
                 original_signal,
@@ -248,20 +257,19 @@ class ASVCancellator:
         return template_aligned
 
     def _fit_template_to_windows_shift_lstsq(
-        self, windowed_signal: np.array, template: np.array, verbose: bool = False
+        self, windowed_signal: np.array, template: np.array, verbose: bool = False, pos_neg_fit: bool = False
     ) -> np.array:
         assert windowed_signal.shape == template.shape
         n_leads, n_windows, window_size = windowed_signal.shape
 
-        coeffs = np.zeros(shape=(n_leads, n_windows, 2))
         template_shifted = template.copy()
+
         for lead in range(n_leads):
-            shifts = np.argmax(np.abs(windowed_signal[lead, :, :]), axis=1) - np.argmax(
-                np.abs(template[lead, :, :]), axis=1
-            )
-            shifts = np.where(np.abs(shifts) < 100, shifts, 0)
             for window in range(n_windows):
-                shift = shifts[window]
+                corr = np.correlate(
+                    np.abs(windowed_signal[lead, window, :]), np.abs(template[lead, window, :]), mode="same"
+                )
+                shift = np.argmax(corr) - window_size // 2
                 template_shifted[lead, window, :] = np.roll(template_shifted[lead, window, :], shift=shift)
 
                 # Ensuring "np.roll" does not create artifacts; values rolled over from the oter end of the array are
@@ -273,27 +281,29 @@ class ASVCancellator:
                 else:
                     pass
 
-                design_matrix = np.stack([template_shifted[lead, window, :], np.ones_like(template[lead, window, :])]).T
+                if pos_neg_fit:
+                    template_pos = np.where(
+                        template_shifted[lead, window, :] >= 0, template_shifted[lead, window, :], 0
+                    )
+                    template_neg = np.where(template_shifted[lead, window, :] < 0, template_shifted[lead, window, :], 0)
+                    design_matrix = np.stack([template_pos, template_neg, np.ones_like(template[lead, window, :])]).T
+                else:
+                    design_matrix = np.stack(
+                        [template_shifted[lead, window, :], np.ones_like(template[lead, window, :])]
+                    ).T
+
                 lstq_results = np.linalg.lstsq(a=design_matrix, b=windowed_signal[lead, window, :].T)
-                coeffs[lead, window, :] = lstq_results[0].T
+                template_shifted[lead, window, :] = np.dot(design_matrix, lstq_results[0])
 
                 if verbose:
                     logging.info(
                         f"Fitting lead {lead+1}, window {window}:"
-                        f" a,b = {lstq_results[0]},"
+                        f" coeffs = {lstq_results[0]},"
                         f" residual = {lstq_results[1]},"
                         f" shift {shift}"
                     )
 
-        template_aligned = template_shifted * np.expand_dims(coeffs[:, :, 0], axis=2) + np.expand_dims(
-            coeffs[:, :, 1], axis=2
-        )
-
-        # N = 100
-        # weights = gaussian(2*N, std = 2*np.sqrt(N))
-        # template_aligned[:,:,:N] *=weights[:N]
-        # template_aligned[:, :, -N:] *= weights[-N:]
-        return template_aligned
+        return template_shifted
 
     def _subtract_template(
         self,
@@ -425,9 +435,11 @@ if __name__ == "__main__":
         original_signal=data_centered,
         r_peaks=qrs_locs[1:],
         verbose=True,
-        fit="normal",
+        fit="shifted",
         P=40,
         M=20,
         use_clustering=False,
+        pos_neg_fit=False,
+        smooth_template=100,
         savefig=True,
     )

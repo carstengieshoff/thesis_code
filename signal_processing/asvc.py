@@ -256,12 +256,11 @@ class ASVCancellator:
         coeffs = np.zeros(shape=(n_leads, n_windows, 2))
         template_shifted = template.copy()
         for lead in range(n_leads):
-            shifts = np.argmax(np.abs(windowed_signal[lead, :, :]), axis=1) - np.argmax(
-                np.abs(template[lead, :, :]), axis=1
-            )
-            shifts = np.where(np.abs(shifts) < 100, shifts, 0)
             for window in range(n_windows):
-                shift = shifts[window]
+                corr = np.correlate(
+                    np.abs(windowed_signal[lead, window, :]), np.abs(template[lead, window, :]), mode="same"
+                )
+                shift = np.argmax(corr) - window_size // 2
                 template_shifted[lead, window, :] = np.roll(template_shifted[lead, window, :], shift=shift)
 
                 # Ensuring "np.roll" does not create artifacts; values rolled over from the oter end of the array are
@@ -289,10 +288,6 @@ class ASVCancellator:
             coeffs[:, :, 1], axis=2
         )
 
-        # N = 100
-        # weights = gaussian(2*N, std = 2*np.sqrt(N))
-        # template_aligned[:,:,:N] *=weights[:N]
-        # template_aligned[:, :, -N:] *= weights[-N:]
         return template_aligned
 
     def _subtract_template(

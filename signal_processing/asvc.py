@@ -79,7 +79,6 @@ class ASVCancellator:
             aa_signal, signal_padded, r_peaks_shifted, front, back, starts_ends, M=M
         )
 
-        print(pad_front, pad_back)
         if pad_front > 0:
             aa_signal_reconstructed = aa_signal_reconstructed[pad_front:]
 

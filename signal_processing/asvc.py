@@ -12,6 +12,9 @@ logging.basicConfig(level=logging.INFO)
 
 
 class ASVCancellator:
+    def reconstruct(self, *args: Any, **kwargs: Any) -> np.array:
+        return self.__call__(*args, **kwargs)
+
     def __call__(
         self,
         original_signal: np.array,

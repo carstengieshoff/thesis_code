@@ -78,14 +78,20 @@ class ASVCancellator:
             aa_signal, signal_padded, r_peaks_shifted, front, back, starts_ends, M=M
         )
 
-        aa_signal_reconstructed_depadded = aa_signal_reconstructed[pad_front:-pad_back]
+        print(pad_front, pad_back)
+        if pad_front > 0:
+            aa_signal_reconstructed = aa_signal_reconstructed[pad_front:]
+
+        if pad_back > 0:
+            aa_signal_reconstructed = aa_signal_reconstructed[:-pad_back]
+
         # Evaluate (optionally)
 
         if verbose:
 
             self._plot(
                 original_signal,
-                aa_signal_reconstructed_depadded,
+                aa_signal_reconstructed,
                 r_peaks,
                 template_fitted,
                 front,
@@ -94,7 +100,7 @@ class ASVCancellator:
                 savefig=savefig,
             )
 
-        return aa_signal_reconstructed_depadded
+        return aa_signal_reconstructed
 
     def _plot(
         self,

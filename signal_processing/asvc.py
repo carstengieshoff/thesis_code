@@ -169,7 +169,7 @@ class ASVCancellator:
     ) -> None:
         signal_len, n_leads = original_signal.shape
 
-        fig, ax = plt.subplots(n_leads, 4, figsize=(50, 60))
+        fig, ax = plt.subplots(n_leads, 4, figsize=(80, 60))
         plt.title("QRST-cancellation using" + str(self), fontsize="x-large")
         if n_leads > 1:
             for lead in range(n_leads):
@@ -481,11 +481,11 @@ if __name__ == "__main__":
     )
 
     data_af = asvc(
-        original_signal=data_centered[:, :1],
+        original_signal=data_centered[:, :],
         r_peaks=qrs_locs[1:],
         verbose=True,
         savefig=False,
-        plot_all=False,
+        plot_all=True,
         plot_single_windows=[(1, 1)],
     )
 

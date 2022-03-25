@@ -104,7 +104,7 @@ class ASVCancellator:
         if pad_back > 0:
             aa_signal_reconstructed = aa_signal_reconstructed[:-pad_back]
 
-        # Evaluate (optionally)
+        # Plot (optionally)
         if plot_all:
             self._plot_all(
                 original_signal,
@@ -127,6 +127,8 @@ class ASVCancellator:
                     template_fitted=template_fitted,
                 )
 
+        # Evaluate (optionally)
+        # VR = self._evaluate_VR(windowed_signal=aa_signal)
         return aa_signal_reconstructed
 
     def _plot_window(
@@ -437,6 +439,26 @@ class ASVCancellator:
         return "ASCV " + concatenator + ", ".join(string_repr)
 
 
+def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50) -> np.array:
+    signal_len, n_leads = aa_signal.shape
+
+    aa_signal = aa_signal.copy()
+    aa_signal = aa_signal - aa_signal.mean(axis=1, keepdims=True)
+
+    denom = np.power(aa_signal[r_peaks.min() : r_peaks.max(), :], 2)
+    denom = denom.mean(axis=0, keepdims=True)
+
+    numerator = np.zeros(shape=(len(r_peaks), n_leads))
+    for i, peak in enumerate(r_peaks):
+        start = max(0, peak - H)
+        end = min(signal_len, peak + H)
+
+        numerator[i, :] = np.sqrt(np.power(aa_signal[start:end, :], 2).mean(axis=0)) * np.max(
+            np.abs(aa_signal[start:end, :]), axis=0, keepdims=True
+        )
+    return (numerator / denom).mean(axis=0)
+
+
 if __name__ == "__main__":
     from scipy.io import loadmat
 
@@ -450,7 +472,7 @@ if __name__ == "__main__":
 
     qrs_locs = detqrs3(data_centered[:, 0], fs)  # get_r_peaks(data_centered[:,0], fs)
     asvc = ASVCancellator(
-        with_shift=False,
+        with_shift=True,
         P=40,
         M=20,
         use_clustering=False,
@@ -459,10 +481,13 @@ if __name__ == "__main__":
     )
 
     data_af = asvc(
-        original_signal=data_centered[:, :5],
+        original_signal=data_centered[:, :1],
         r_peaks=qrs_locs[1:],
         verbose=True,
         savefig=False,
         plot_all=False,
-        plot_single_windows=[(5, 10)],
+        plot_single_windows=[(1, 1)],
     )
+
+    print(f"VR original signal: {evaluate_VR(data_centered[:, :5], r_peaks=qrs_locs)}")
+    print(f"VR processed signal: {evaluate_VR(data_af, r_peaks=qrs_locs)}")

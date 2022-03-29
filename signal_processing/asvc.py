@@ -375,8 +375,13 @@ class ASVCancellator:
                 window_ = windowed_signal[lead, window, :]
                 # print(
                 #    f"Lead {lead + 1}, window {window + 1}:  diff {window_.max() - template_.max()}")
-                pos_ratio = window_[window_ >= 0].max() / template_[template_ >= 0].max()
-                neg_ratio = window_[window_ < 0].min() / template_[template_ < 0].min()
+                try:
+                    pos_ratio = window_[window_ >= 0].max() / template_[template_ >= 0].max()
+                    neg_ratio = window_[window_ < 0].min() / template_[template_ < 0].min()
+                except ValueError:
+                    pos_ratio = 1
+                    neg_ratio = 1
+
                 template_ = np.where(template_ >= 0, template_ * pos_ratio, template_ * neg_ratio)
 
                 # print(

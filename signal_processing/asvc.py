@@ -46,7 +46,7 @@ class ASVCancellator:
         original_signal: np.array,
         r_peaks: np.array,
         verbose: bool = False,
-        plot_all: bool = True,
+        plot_all: bool = False,
         savefig: bool = False,
         plot_single_windows: Optional[List[Tuple[int, int]]] = None,
         *args: Any,

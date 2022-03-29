@@ -21,6 +21,8 @@ class ASVCancellator:
         smooth_template: Optional[int] = None,
         pos_neg_fit: bool = False,
         smooth_transitions: bool = True,
+        use_weights: bool = False,
+        fit_min_max: bool = False,
         P: int = 40,
         M: int = 20,
     ):
@@ -31,6 +33,8 @@ class ASVCancellator:
         self.smooth_template = smooth_template
         self.pos_neg_fit = pos_neg_fit
         self.smooth_transitions = smooth_transitions
+        self.use_weights = use_weights
+        self.fit_min_max = fit_min_max
         self.P = P
         self.M = M
 
@@ -61,11 +65,19 @@ class ASVCancellator:
         pad_back = max(0, r_peaks.max() + back - original_signal.shape[0] + 1)
         r_peaks_shifted = r_peaks + pad_front
 
+        # signal_padded = np.vstack(
+        #     [
+        #         np.zeros(shape=(pad_front, original_signal.shape[1])),
+        #         original_signal,
+        #         np.zeros(shape=(pad_back, original_signal.shape[1])),
+        #     ]
+        # )
+
         signal_padded = np.vstack(
             [
-                np.zeros(shape=(pad_front, original_signal.shape[1])),
+                original_signal[r_peaks[1] - front : r_peaks[1] - front + pad_front, :],
                 original_signal,
-                np.zeros(shape=(pad_back, original_signal.shape[1])),
+                original_signal[r_peaks[-2] + back - pad_back : r_peaks[-2] + back, :],
             ]
         )
 
@@ -85,13 +97,15 @@ class ASVCancellator:
 
         # Fit template to window
         template_fitted = self._fit_template_to_windows(
-            rr_windows, template, verbose=verbose, pos_neg_fit=self.pos_neg_fit
+            rr_windows, template, verbose=verbose, pos_neg_fit=self.pos_neg_fit, use_weights=self.use_weights
         )
 
+        # Fit min max
+        if self.fit_min_max:
+            template_fitted = self._fit_max(rr_windows, template_fitted)
+
         # fit transitions
-        aa_signal, starts_ends = self._subtract_template(
-            windowed_signal=rr_windows, template=template_fitted, P=self.P, M=self.M, smooth_transitions=False
-        )
+        aa_signal, starts_ends = self._subtract_template(windowed_signal=rr_windows, template=template_fitted, P=self.P)
 
         # Fit to original signal shape and smooth transitions
         aa_signal_reconstructed = self._reconstruct(
@@ -169,28 +183,28 @@ class ASVCancellator:
     ) -> None:
         signal_len, n_leads = original_signal.shape
 
-        fig, ax = plt.subplots(n_leads, 4, figsize=(80, 60))
-        plt.title("QRST-cancellation using" + str(self), fontsize="x-large")
+        fig, ax = plt.subplots(n_leads, 4, figsize=(50, 70))
+        plt.title("QRST-cancellation using" + str(self), fontsize="xx-large")
         if n_leads > 1:
             for lead in range(n_leads):
                 ax[lead, 0].plot(original_signal[:, lead], label="original")
                 ax[lead, 0].scatter(r_peaks, original_signal[r_peaks, lead], marker="o", color="red", label="r-peaks")
-                ax[lead, 0].set_title(f"lead_{lead + 1} Original ECG", fontsize="large")
+                ax[lead, 0].set_title(f"lead_{lead + 1} Original ECG", fontsize="xx-large")
                 ax[lead, 0].legend()
 
                 ax[lead, 1].plot(transformed_signal[:, lead])
-                ax[lead, 1].set_title("Estimated AA", fontsize="large")
+                ax[lead, 1].set_title("Estimated AA", fontsize="xx-large")
 
                 ax[lead, 2].plot(
                     original_signal[:, lead] - transformed_signal[:, lead],
                 )
-                ax[lead, 2].set_title("Estimated VA (orig- Estimated AA)", fontsize="large")
+                ax[lead, 2].set_title("Estimated VA (orig- Estimated AA)", fontsize="xx-large")
 
                 ax[lead, 3].plot(template[lead, :, :].T)
-                ax[lead, 3].set_title(f"lead_{lead+1}-templates", fontsize="large")
+                ax[lead, 3].set_title(f"lead_{lead+1}-templates", fontsize="xx-large")
 
                 for w, peak in enumerate(r_peaks):
-                    for j in range(3):
+                    for j in range(2):
                         add_intensity = cluster_labels[lead, w] / 5
                         ax[lead, j].axvspan(
                             peak - front,
@@ -207,19 +221,18 @@ class ASVCancellator:
         else:
             ax[0].plot(original_signal, label="original")
             ax[0].scatter(r_peaks, original_signal[r_peaks, :], marker="o", color="red", label="r-peaks")
-            ax[0].set_title()
             ax[0].legend()
 
             ax[1].plot(transformed_signal)
-            ax[1].set_title("AA", fontsize="large")
+            ax[1].set_title("AA", fontsize="x-large")
 
             ax[2].plot(
                 original_signal - transformed_signal,
             )
-            ax[2].set_title("VA (orig-AA)", fontsize="large")
+            ax[2].set_title("VA (orig-AA)", fontsize="x-large")
 
             ax[3].plot(template[0, 0, :])
-            ax[3].set_title("lead-template", fontsize="large")
+            ax[3].set_title("lead-template", fontsize="x-large")
 
             for j in range(3):
                 for w, peak in enumerate(r_peaks):
@@ -273,8 +286,21 @@ class ASVCancellator:
             labels = model.labels_
         return labels
 
+    def _get_weights(self, window_size: int) -> np.array:
+
+        weights = gaussian(M=window_size, std=3 * np.sqrt(window_size))
+        weights = np.roll(weights, -1 * int((0.5 - 0.3) * window_size))
+        # plt.plot(weights)
+        # plt.show()
+        return weights
+
     def _fit_template_to_windows(
-        self, windowed_signal: np.array, template: np.array, verbose: bool = False, pos_neg_fit: bool = False
+        self,
+        windowed_signal: np.array,
+        template: np.array,
+        verbose: bool = False,
+        pos_neg_fit: bool = False,
+        use_weights: bool = True,
     ) -> np.array:
         assert windowed_signal.shape == template.shape
         n_leads, n_windows, window_size = windowed_signal.shape
@@ -312,7 +338,15 @@ class ASVCancellator:
                         [templates_aligned[lead, window, :], np.ones_like(template[lead, window, :])]
                     ).T
 
-                lstq_results = np.linalg.lstsq(a=design_matrix, b=windowed_signal[lead, window, :].T)
+                X = design_matrix.copy()
+                b = windowed_signal[lead, window, :].T.copy()
+
+                if use_weights:
+                    weights = self._get_weights(window_size)
+                    X = np.diag(weights) @ X
+                    b = np.diag(weights) @ b
+
+                lstq_results = np.linalg.lstsq(a=X, b=b)
                 templates_aligned[lead, window, :] = np.dot(design_matrix, lstq_results[0])
 
                 if verbose:
@@ -328,13 +362,35 @@ class ASVCancellator:
 
         return templates_aligned
 
+    def _fit_max(
+        self,
+        windowed_signal: np.array,
+        template: np.array,
+    ) -> np.array:
+        template = template.copy()
+        n_leads, n_windows, window_size = windowed_signal.shape
+        for lead in range(n_leads):
+            for window in range(n_windows):
+                template_ = template[lead, window, :]
+                window_ = windowed_signal[lead, window, :]
+                # print(
+                #    f"Lead {lead + 1}, window {window + 1}:  diff {window_.max() - template_.max()}")
+                pos_ratio = window_[window_ >= 0].max() / template_[template_ >= 0].max()
+                neg_ratio = window_[window_ < 0].min() / template_[template_ < 0].min()
+                template_ = np.where(template_ >= 0, template_ * pos_ratio, template_ * neg_ratio)
+
+                # print(
+                #    f"Lead {lead + 1}, window {window + 1}:"
+                #    "ratios {pos_ratio} {neg_ratio}, diff {window_.max() - template_.max()}")
+                template[lead, window, :] = template_
+
+        return template
+
     def _subtract_template(
         self,
         windowed_signal: np.array,
         template: np.array,
         P: int,
-        M: int,
-        smooth_transitions: bool = True,
     ) -> np.array:
         template = template.copy()
         n_leads, n_windows, window_size = windowed_signal.shape
@@ -345,7 +401,6 @@ class ASVCancellator:
 
         for lead in range(n_leads):
             for window in range(n_windows):
-
                 diff = np.abs(windowed_signal[lead, window, :] - template[lead, window, :])
                 start = np.argmin(diff[:P])
                 end = np.argmin(diff[-P:]) + window_size - P
@@ -443,7 +498,7 @@ def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50) -> np.array
     signal_len, n_leads = aa_signal.shape
 
     aa_signal = aa_signal.copy()
-    aa_signal = aa_signal - aa_signal.mean(axis=1, keepdims=True)
+    aa_signal = aa_signal - aa_signal.mean(axis=0, keepdims=True)
 
     denom = np.power(aa_signal[r_peaks.min() : r_peaks.max(), :], 2)
     denom = denom.mean(axis=0, keepdims=True)
@@ -456,13 +511,18 @@ def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50) -> np.array
         numerator[i, :] = np.sqrt(np.power(aa_signal[start:end, :], 2).mean(axis=0)) * np.max(
             np.abs(aa_signal[start:end, :]), axis=0, keepdims=True
         )
-    return (numerator / denom).mean(axis=0)
+    if n_leads > 1:
+        return numerator / denom  # .mean(axis=0)
+    else:
+        return numerator / denom
 
 
 if __name__ == "__main__":
     from scipy.io import loadmat
+    from scipy.signal import cheby2
 
     from signal_processing import detqrs3
+    from visualizations import plot_filter, plot_spectral_envelope
 
     data = loadmat("../tests/data/detqrs_data.mat")
     # qrs_locs = data["qrs_locs"].squeeze() - 1
@@ -470,24 +530,45 @@ if __name__ == "__main__":
     data_centered = data_centered - data_centered.mean(axis=0)
     fs = 1000
 
+    plot_spectral_envelope(data_centered, Fs=fs)
+
+    plt.plot(data_centered)
+    plt.show()
+
+    # Create and review filter
+    [b, a] = cheby2(3, 20, [1, 100], btype="bandpass", fs=fs)
+    plot_filter(b, a, fs)
+    plt.show()
+    data_centered = filtfilt(b, a, data_centered, axis=0)
+
+    [b, a] = cheby2(3, 20, 5, btype="highpass", fs=fs)
+    plot_filter(b, a, fs)
+    plt.show()
+    data_centered = filtfilt(b, a, data_centered, axis=0)
+
+    # Filter all signals and show example
+    plot_spectral_envelope(data_centered, Fs=fs)
+    plt.show()
+
+    plt.plot(data_centered)
+    plt.show()
+
     qrs_locs = detqrs3(data_centered[:, 0], fs)  # get_r_peaks(data_centered[:,0], fs)
     asvc = ASVCancellator(
-        with_shift=True,
-        P=40,
-        M=20,
-        use_clustering=False,
-        pos_neg_fit=False,
-        smooth_template=None,
+        with_shift=True, P=40, M=20, use_clustering=False, pos_neg_fit=True, smooth_template=None, use_weights=True
     )
 
-    data_af = asvc(
-        original_signal=data_centered[:, :],
-        r_peaks=qrs_locs[1:],
-        verbose=True,
-        savefig=False,
-        plot_all=True,
-        plot_single_windows=[(1, 1)],
-    )
+    for lead in [1, 9]:
+        data = data_centered[:, lead].reshape(-1, 1)
+        qrs_locs = detqrs3(data, fs)
+        data_af = asvc(
+            original_signal=data,
+            r_peaks=qrs_locs[:],
+            verbose=True,
+            savefig=True,
+            plot_all=False,
+            plot_single_windows=[],
+        )
 
-    print(f"VR original signal: {evaluate_VR(data_centered[:, :5], r_peaks=qrs_locs)}")
+    # print(f"VR original signal: {evaluate_VR(data, r_peaks=qrs_locs)}")
     print(f"VR processed signal: {evaluate_VR(data_af, r_peaks=qrs_locs)}")

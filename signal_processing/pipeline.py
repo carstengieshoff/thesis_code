@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Optional
+from typing import Any, Callable, List, Optional
 
 import numpy as np
 from scipy.signal import filtfilt, resample
@@ -75,6 +75,14 @@ class SignalProcessingPipeline:
 
         if excluded > 0:
             logging.info(f"{excluded} signals were excluded due to issues in determining r-peaks")
+
+        self.dataset = ds_new
+
+    def apply(self, func: Callable[[np.array], np.array]) -> None:
+        ds_new: List[DataPoint] = []
+        for x, y in tqdm(self.dataset, total=len(self.dataset)):
+            x_new = func(x)
+            ds_new.append(DataPoint(x_new, y))
 
         self.dataset = ds_new
 

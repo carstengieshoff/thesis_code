@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 from scipy.signal import filtfilt, resample
@@ -56,17 +56,19 @@ class SignalProcessingPipeline:
 
         self.dataset = ds_new
 
-    def remove_qrs(self, qrs_estimator: QRSEstimator, r_peak_detector: str = "detqrs3") -> None:
+    def remove_qrs(
+        self, qrs_estimator: QRSEstimator, r_peak_detector: str = "detqrs3", qrs_idx: int = 0, *args: Any, **kwars: Any
+    ) -> None:
 
         ds_new: List[DataPoint] = []
         excluded = 0
         for x, y in tqdm(self.dataset, total=len(self.dataset)):
             try:
                 if r_peak_detector == "detqrs3":
-                    qrs_locs = detqrs3(x[:, 0], self.Fs)
+                    qrs_locs = detqrs3(x[:, qrs_idx], self.Fs)
                 else:
-                    qrs_locs = get_r_peaks(x[:, 0], self.Fs)
-                x_new = qrs_estimator.reconstruct(x, qrs_locs)
+                    qrs_locs = get_r_peaks(x[:, qrs_idx], self.Fs)
+                x_new = qrs_estimator.reconstruct(x, qrs_locs, *args, **kwars)
                 ds_new.append(DataPoint(x_new, y))
             except IndexError:
                 excluded += 1

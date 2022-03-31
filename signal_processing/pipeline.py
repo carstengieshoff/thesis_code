@@ -72,6 +72,8 @@ class SignalProcessingPipeline:
                 ds_new.append(DataPoint(x_new, y))
             except IndexError:
                 excluded += 1
+            except ValueError:
+                excluded += 1
 
         if excluded > 0:
             logging.info(f"{excluded} signals were excluded due to issues in determining r-peaks")

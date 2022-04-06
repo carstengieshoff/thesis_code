@@ -27,7 +27,8 @@ def save_activation(
         if isinstance(layer, int):
             layer = repr(model[layer])
         if with_relu:
-            activation = nn.ReLU(activations[layer])
+            rel = nn.ReLU()
+            activation = rel(activations[layer])
         else:
             activation = activations[layer]
         N, C, H, W = activation.shape

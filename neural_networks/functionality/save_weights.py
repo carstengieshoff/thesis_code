@@ -17,4 +17,4 @@ def save_weights(
             weight = weight.reshape(-1, 1, weight.shape[-2], weight.shape[-1])
 
             img_grid = make_grid(weight)
-            writer.add_image(global_name + layer, img_grid)
+            writer.add_image(global_name + repr(layer), img_grid)

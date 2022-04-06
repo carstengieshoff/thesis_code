@@ -1,23 +1,20 @@
 from typing import Any, List, Optional
 
 import numpy as np
-import pandas as pd
-import seaborn as sn
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 
-class CNN(nn.Module):  # type: ignore
+class AutoEncoder(nn.Module):  # type: ignore
     def __init__(self, writer: Optional[SummaryWriter] = None) -> None:
         super().__init__()
-        self.writer = writer
         self.train_loss: List[float] = []
-        self.val_acc: List[float] = []
+        self.val_loss: List[float] = []
+        self.writer = writer
 
     def forward(self, x: torch.tensor) -> torch.tensor:
         return x
@@ -38,17 +35,20 @@ class CNN(nn.Module):  # type: ignore
         """Train the nn."""
         n_total_steps = len(trainloader)
         running_loss = []
-
         for epoch in range(num_epochs):
 
             for i, data in enumerate(trainloader, 0):
                 inputs, labels = data
-                labels = labels.to(device)
+                # labels = labels.to(device)
                 inputs = inputs.to(device)
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
 
                 # forward + backward + optimize
                 outputs = self.forward(inputs.float())
-                loss = criterion(outputs.to(device), labels.long())
+                loss = criterion(outputs.to(device), inputs)
+
                 if loss.isnan().any():
                     print(inputs, labels)
                     raise RuntimeError("nans in loss")
@@ -66,7 +66,7 @@ class CNN(nn.Module):  # type: ignore
 
                     if self.writer is not None:
                         if validationloader:
-                            self.val_loss.append(self.evaluate_nn(validationloader, device=device))
+                            self.val_loss.append(self.evaluate_nn(validationloader, device=device, criterion=criterion))
                             self.writer.add_scalars(
                                 "Training",
                                 {"training loss": self.train_loss[-1], "validation loss": self.val_loss[-1]},
@@ -80,23 +80,19 @@ class CNN(nn.Module):  # type: ignore
         if plot_loss:
             self.plot_loss(*args, **kwargs)
 
-    def evaluate_nn(self, loader: DataLoader, device: torch.device) -> float:
-        correct = 0
-        total = 0
+    def evaluate_nn(self, loader: DataLoader, device: torch.device, criterion: nn.Module) -> float:
+        running_loss = []
 
         with torch.no_grad():
             for data in loader:
-                images, labels = data
-                labels = labels.to(device)
+                images, _ = data
                 images = images.to(device)
-                # calculate outputs by running images through the network
-                outputs = self.forward(images.float())
-                # the class with the highest energy is what we choose as prediction
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels.to(device)).sum().item()
 
-        return 100 * correct // total
+                outputs = self.forward(images.float())
+                loss = criterion(outputs.to(device), images)
+                running_loss.append(loss.item())
+
+        return sum(running_loss) / len(running_loss)
 
     def plot_loss(self, *args: Any, **kwargs: Any) -> None:
 
@@ -106,34 +102,8 @@ class CNN(nn.Module):  # type: ignore
         losses = np.array(self.train_loss)
         losses_scaled = 100 * losses / losses.max()
         ax.plot(losses_scaled, label="loss")
-        if self.val_acc:
-            ax.plot(self.val_acc, label="validation")
+        if self.val_loss:
+            ax.plot(self.val_loss, label="validation")
 
         ax.legend()
-        plt.show()
-
-    def show_confusion_matrix(self, loader: DataLoader, device: torch.device, name: Optional[str] = None) -> None:
-        name = "" if name is None else name
-
-        true_label: List[int] = []
-        predicted_label: List[int] = []
-        with torch.no_grad():
-            for x, y in loader:
-                y = y.to(device)
-                x = x.to(device)
-                outputs = self.forward(x.float().to(device))
-                _, predicted = torch.max(outputs.data, 1)
-
-                true_label = true_label + y.tolist()
-                predicted_label = predicted_label + predicted.tolist()
-
-        cm = confusion_matrix(true_label, predicted_label)
-        cm = pd.DataFrame(cm)
-        fig = plt.figure(figsize=(10, 7))
-        sn.heatmap(cm, annot=True)
-        plt.xlabel("predicted")
-        plt.ylabel("true")
-        if self.writer is not None:
-            tag = f"ConfusionMatrix_{name}"
-            self.writer.add_figure(tag, fig)
         plt.show()

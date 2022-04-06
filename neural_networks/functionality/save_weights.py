@@ -13,7 +13,7 @@ def save_weights(
 
     for layer in model.children():
         if repr(layer).lower().startswith(layer_name):
-            weight = layer.weight.copy().detach()
+            weight = layer.weight.detach()
             weight = weight.reshape(-1, 1, weight.shape[-2], weight.shape[-1])
 
             img_grid = make_grid(weight)

@@ -14,6 +14,7 @@ def save_activation(
     model_input: torch.tensor,
     layers: List[Union[str, int]],
     global_name: Optional[str] = None,
+    with_relu: bool = True,
 ) -> None:
 
     if not isinstance(model, nn.Sequential):
@@ -25,8 +26,10 @@ def save_activation(
     for layer in layers:
         if isinstance(layer, int):
             layer = repr(model[layer])
-
-        activation = activations[layer]
+        if with_relu:
+            activation = nn.ReLU(activations[layer])
+        else:
+            activation = activations[layer]
         N, C, H, W = activation.shape
 
         for i in range(N):

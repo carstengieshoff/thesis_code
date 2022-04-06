@@ -28,7 +28,7 @@ class AutoEncoder(nn.Module):  # type: ignore
         criterion: nn.Module,
         device: torch.device,
         show_every_n: int = 100,
-        plot_loss: bool = True,
+        plot_loss: bool = False,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -77,7 +77,7 @@ class AutoEncoder(nn.Module):  # type: ignore
 
                     running_loss = []
 
-        if plot_loss and self.writer is None:
+        if plot_loss:
             self.plot_loss(*args, **kwargs)
 
     def evaluate_nn(self, loader: DataLoader, device: torch.device, criterion: nn.Module) -> float:

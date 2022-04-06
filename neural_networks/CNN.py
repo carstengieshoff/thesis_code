@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -9,12 +9,14 @@ import torch.optim as optim
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 
 class CNN(nn.Module):  # type: ignore
-    def __init__(self) -> None:
+    def __init__(self, writer: Optional[SummaryWriter] = None) -> None:
         super().__init__()
-        self.losses: List[float] = []
+        self.writer = writer
+        self.train_loss: List[float] = []
         self.val_acc: List[float] = []
 
     def forward(self, x: torch.tensor) -> torch.tensor:
@@ -29,21 +31,20 @@ class CNN(nn.Module):  # type: ignore
         criterion: nn.Module,
         device: torch.device,
         show_every_n: int = 100,
-        plot_loss: bool = True,
+        plot_loss: bool = False,
         *args: Any,
         **kwargs: Any,
     ) -> None:
         """Train the nn."""
+        n_total_steps = len(trainloader)
         running_loss = []
+
         for epoch in range(num_epochs):
 
             for i, data in enumerate(trainloader, 0):
                 inputs, labels = data
                 labels = labels.to(device)
                 inputs = inputs.to(device)
-
-                # zero the parameter gradients
-                optimizer.zero_grad()
 
                 # forward + backward + optimize
                 outputs = self.forward(inputs.float())
@@ -52,17 +53,29 @@ class CNN(nn.Module):  # type: ignore
                     print(inputs, labels)
                     raise RuntimeError("nans in loss")
 
+                # zero the parameter gradients
+                optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
                 # print statistics
                 running_loss.append(loss.item())
                 if i % show_every_n == (show_every_n - 1):
-                    self.losses.append(sum(running_loss) / len(running_loss))
-                    print(f"[{epoch + 1}, {i + 1:5d}] loss: {self.losses[-1]:.3f}")
+                    self.train_loss.append(sum(running_loss) / len(running_loss))
+                    print(f"[{epoch + 1}, {i + 1:5d}] loss: {self.train_loss[-1]:.3f}")
+
+                    if self.writer is not None:
+                        if validationloader:
+                            self.val_loss.append(self.evaluate_nn(validationloader, device=device))
+                            self.writer.add_scalars(
+                                "Training",
+                                {"training loss": self.train_loss[-1], "validation loss": self.val_loss[-1]},
+                                epoch * n_total_steps + i,
+                            )
+                        else:
+                            self.writer.add_scalar("training loss", self.train_loss[-1], epoch * n_total_steps + i)
+
                     running_loss = []
-                    if validationloader:
-                        self.val_acc.append(self.evaluate_nn(validationloader, device=device))
 
         if plot_loss:
             self.plot_loss(*args, **kwargs)
@@ -90,7 +103,7 @@ class CNN(nn.Module):  # type: ignore
         plt.figure(*args, **kwargs)
 
         ax = plt.subplot(111)
-        losses = np.array(self.losses)
+        losses = np.array(self.train_loss)
         losses_scaled = 100 * losses / losses.max()
         ax.plot(losses_scaled, label="loss")
         if self.val_acc:
@@ -99,7 +112,9 @@ class CNN(nn.Module):  # type: ignore
         ax.legend()
         plt.show()
 
-    def show_confusion_matrix(self, loader: DataLoader, device: torch.device) -> None:
+    def show_confusion_matrix(self, loader: DataLoader, device: torch.device, name: Optional[str] = None) -> None:
+        name = "" if name is None else name
+
         true_label: List[int] = []
         predicted_label: List[int] = []
         with torch.no_grad():
@@ -114,8 +129,11 @@ class CNN(nn.Module):  # type: ignore
 
         cm = confusion_matrix(true_label, predicted_label)
         cm = pd.DataFrame(cm)
-        plt.figure(figsize=(10, 7))
+        fig = plt.figure(figsize=(10, 7))
         sn.heatmap(cm, annot=True)
         plt.xlabel("predicted")
         plt.ylabel("true")
+        if self.writer is not None:
+            tag = f"ConfusionMatrix_{name}"
+            self.writer.add_figure(tag, fig)
         plt.show()

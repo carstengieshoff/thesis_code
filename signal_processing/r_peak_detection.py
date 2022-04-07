@@ -3,6 +3,7 @@ import logging
 import neurokit2 as nk
 import numpy as np
 from ecgdetectors import Detectors
+from scipy.signal import cheby2, filtfilt
 
 
 def get_r_peaks(signal: np.array, sampling_rate: int, return_bools: bool = False) -> np.array:
@@ -21,9 +22,10 @@ def get_r_peaks(signal: np.array, sampling_rate: int, return_bools: bool = False
 class RPeakDetector(Detectors):  # type: ignore
     def __init__(
         self,
-        sampling_frequency: float,
-        min_dist: float = 0.3,
-        max_dist: float = 1.2,
+        sampling_frequency: int,
+        method: str = "neuro",
+        min_dist: float = 0.2,
+        max_dist: float = 2,
         max_num: int = 20,
         min_num: int = 4,
     ) -> None:
@@ -32,11 +34,24 @@ class RPeakDetector(Detectors):  # type: ignore
         self.max_dist = int(max_dist * sampling_frequency)
         self.max_num = max_num
         self.min_num = min_num
+        self.method = method
 
         self.removals = 0
 
+        self.detector = {
+            "Elgendi et al (Two average)": self.two_average_detector,
+            "Matched filter": self.matched_filter_detector,
+            "Kalidas & Tamil (Wavelet transform)": self.swt_detector,
+            "Engzee": self.engzee_detector,
+            "Christov": self.christov_detector,
+            "Hamilton": self.hamilton_detector,
+            "Pan Tompkins": self.pan_tompkins_detector,
+            "WQRS": self.wqrs_detector,
+            "neuro": lambda x: get_r_peaks(x, sampling_frequency),
+        }
+
     def detect(self, signal: np.array, correct_peaks: bool = True) -> np.array:
-        r_peaks = super().pan_tompkins_detector(signal)
+        r_peaks = self.detector[self.method](signal.T)
         r_peaks = np.asarray(r_peaks)
 
         if correct_peaks:
@@ -67,7 +82,6 @@ class RPeakDetector(Detectors):  # type: ignore
 
     def correct(self, signal: np.array, peaks: np.array) -> np.array:
         # from https://dsp.stackexchange.com/questions/58155/how-to-filter-ecg-and-detect-r-peaks
-
         num_peak = peaks.shape[0]
         peaks_corrected_list = list()
         for index in range(num_peak):
@@ -83,7 +97,7 @@ class RPeakDetector(Detectors):  # type: ignore
             elif signal[cnt] < signal[cnt + 1]:
                 while signal[cnt] < signal[cnt + 1]:
                     cnt += 1
-                    if cnt < 0 or cnt == signal.shape[0] - 1:
+                    if cnt < 0 or cnt == max(signal.shape) - 1:
                         break
             peaks_corrected_list.append(cnt)
         peaks_corrected = np.asarray(peaks_corrected_list)
@@ -99,14 +113,19 @@ if __name__ == "__main__":
 
     fs = 1000
 
-    qrs_locs = get_r_peaks(x.squeeze(), fs)
+    [b, a] = cheby2(3, 20, [1, 100], btype="bandpass", fs=fs)
+    data_new = filtfilt(b, a, data, axis=0)
+
+    detector = RPeakDetector(fs)
+    # qrs_locs = get_r_peaks(x.squeeze(), fs)
+    qrs_locs = detector.detect(data_new[:, 2])
 
     fig, ax = plt.subplots(12, 2, figsize=(10, 40))
 
     for i in range(12):
         ax[i, 0].plot(data[:, i])
-        ax[i, 1].plot(data[:, i])
-        ax[i, 1].scatter(qrs_locs, data[qrs_locs, i], marker="x", color="red")
+        ax[i, 1].plot(data_new[:, i])
+        ax[i, 1].scatter(qrs_locs, data_new[qrs_locs, i], marker="x", color="red")
         ax[i, 0].set_title(f"lead_{i + 1}")
         ax[i, 1].set_title(f"lead_{i + 1}_filtered")
 

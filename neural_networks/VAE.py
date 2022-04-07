@@ -27,7 +27,7 @@ class VAE(nn.Module):  # type: ignore
         std = torch.exp(sigma / 2)
         eps = torch.randn_like(std)
         z = mu + std * eps
-        self.kl = (std**2 + mu**2 - torch.log(std) - 1 / 2).sum()
+        self.kl = (std**2 + mu**2 - torch.log(std) - 1 / 2).mean()
         return z
 
     def forward(self, x: torch.tensor) -> torch.tensor:

@@ -50,7 +50,7 @@ class RPeakDetector(Detectors):  # type: ignore
             "neuro": lambda x: get_r_peaks(x, sampling_frequency),
         }
 
-    def detect(self, signal: np.array, correct_peaks: bool = True) -> np.array:
+    def detect(self, signal: np.array, correct_peaks: bool = True, threshold: float = 1.95) -> np.array:
         r_peaks = self.detector[self.method](signal.T)
         r_peaks = np.asarray(r_peaks)
 
@@ -76,6 +76,11 @@ class RPeakDetector(Detectors):  # type: ignore
         if rr_dist.max() > self.max_dist:
             self.removals += 1
             logging.info("Too long distance between r-peaks")
+            return None
+
+        if rr_dist.max() / rr_dist.min() > threshold:
+            self.removals += 1
+            logging.info("Too heterogenous  distances between r-peaks")
             return None
 
         return r_peaks

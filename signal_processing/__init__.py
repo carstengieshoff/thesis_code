@@ -6,7 +6,8 @@ from signal_processing.normalize import normalize
 from signal_processing.PCA import PCA
 from signal_processing.pipeline import SignalProcessingPipeline
 from signal_processing.qrs_cancellation import QRSEstimator
-from signal_processing.r_peak_detection import RPeakDetector, get_r_peaks
+from signal_processing.r_peak_detection import get_r_peaks
+from signal_processing.r_peak_detector import RPeakDetector
 
 __all__ = [
     "Byest",

@@ -20,8 +20,8 @@ class Dataset:
         dataset: List[DataPoint],
         rps: Optional[np.array] = None,
     ):
-        self._signals, self._labels = self._list_data_to_arrays(dataset=dataset)
         self._recurrence_plots: Optional[np.array] = rps
+        self._signals, self._labels = self._list_data_to_arrays(dataset=dataset)
 
     def calc_rps(
         self,
@@ -76,7 +76,8 @@ class Dataset:
 
     def _list_data_to_arrays(self, dataset: List[DataPoint]) -> Tuple[np.array, np.array]:
         x, y = list(map(list, zip(*dataset)))
-        return np.stack(x), np.stack(y)
+        # return np.stack(x), np.stack(y)
+        return x, y
 
     def plot(self, item: int, *args: Any, **kwargs: Any) -> None:
         fig = plt.figure(*args, **kwargs)

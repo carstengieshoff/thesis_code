@@ -9,21 +9,30 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 
-class AutoEncoder(nn.Module):  # type: ignore
+class VAE(nn.Module):  # type: ignore
     def __init__(self, writer: Optional[SummaryWriter] = None) -> None:
         super().__init__()
         self.train_loss: List[float] = []
         self.val_loss: List[float] = []
         self.writer = writer
+        self.kl = 0
 
     def encoder(self, x: torch.tensor) -> torch.tensor:
-        return x
+        return x, x
 
     def decoder(self, z: torch.tensor) -> torch.tensor:
         return z
 
+    def reparameterize(self, mu: torch.tensor, sigma: torch.tensor) -> torch.tensor:
+        std = torch.exp(sigma / 2)
+        eps = torch.randn_like(std)
+        z = mu + std * eps
+        self.kl = (std**2 + mu**2 - torch.log(std) - 1 / 2).sum()
+        return z
+
     def forward(self, x: torch.tensor) -> torch.tensor:
-        z = self.encoder(x)
+        mu, sigma = self.encoder(x)
+        z = self.reparameterize(mu, sigma)
         y = self.decoder(z)
         return y
 
@@ -37,6 +46,7 @@ class AutoEncoder(nn.Module):  # type: ignore
         device: torch.device,
         show_every_n: int = 100,
         plot_loss: bool = False,
+        lam: float = 1.0,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -55,7 +65,7 @@ class AutoEncoder(nn.Module):  # type: ignore
 
                 # forward + backward + optimize
                 outputs = self.forward(inputs.float())
-                loss = criterion(outputs.to(device), inputs)
+                loss = criterion(outputs.to(device), inputs) + lam * self.kl
 
                 if loss.isnan().any():
                     print(inputs, labels)

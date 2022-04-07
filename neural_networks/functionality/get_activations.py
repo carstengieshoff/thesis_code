@@ -14,8 +14,15 @@ def get_activations(
         activations[repr(inst)] = out
 
     hooks = []
-    for i, layer in enumerate(model.children()):
-        hooks.append(layer.register_forward_hook(_hook))
+
+    def get_hook(name: str):  # type: ignore
+        def _hook(inst: nn.Module, inp: torch.tensor, out: torch.tensor) -> None:
+            activations[name] = out
+
+        return _hook
+
+    for name, layer in model.named_children():
+        hooks.append(layer.register_forward_hook(get_hook(name)))
 
     model(model_input)
 

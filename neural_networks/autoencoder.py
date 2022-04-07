@@ -15,9 +15,18 @@ class AutoEncoder(nn.Module):  # type: ignore
         self.train_loss: List[float] = []
         self.val_loss: List[float] = []
         self.writer = writer
+        self.kl = 0
+
+    def encoder(self, x: torch.tensor) -> torch.tensor:
+        return x
+
+    def decoder(self, z: torch.tensor) -> torch.tensor:
+        return z
 
     def forward(self, x: torch.tensor) -> torch.tensor:
-        return x
+        z = self.encoder(x)
+        y = self.decoder(z)
+        return y
 
     def train_nn(
         self,

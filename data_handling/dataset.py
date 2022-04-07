@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 from data_handling.data_reader import DataPoint
-from embeddings.utils import fnn, mutual_information
+from embeddings.utils import fnn, get_spectral_envelope_max, idx_to_lag, mutual_information
 from recurrence_plots import RecurrencePlotCalculator
 from visualizations import plot_hist2d, plot_rp
 
@@ -93,28 +93,45 @@ class Dataset:
         plt.suptitle(f"Instance of category {self._labels[item]}")
         plt.show()
 
-    def get_embedding_info(self, num_samples: int = 0, *args: Any, **kwargs: Any) -> None:
+    def get_embedding_info(self, num_samples: int = 0, use: str = "SE", *args: Any, **kwargs: Any) -> None:
         # TODO: Add option to plot this for any group of labels
         import random
 
         if num_samples > 0:
             sample_idxs = random.sample(list(range(self._signals.shape[0])), k=num_samples)
             samples = self._signals[sample_idxs]
+            labels = self._labels[sample_idxs]
         else:
             samples = self._signals
+            labels = self._labels
 
-        lags = []
-        dims = []
-        for x in tqdm(samples, total=len(samples)):
-            lag = mutual_information(signal=x)
-            dim = fnn(signal=x, lag=lag)
+        if use == "MIFNN":
+            lags = []
+            dims = []
+            for x in tqdm(samples, total=len(samples)):
+                lag = mutual_information(signal=x)
+                dim = fnn(signal=x, lag=lag)
 
-            lags.append(lag)
-            dims.append(dim)
-        lags = np.array(lags, dtype="uint8")
-        dims = np.array(dims, dtype="uint8")
+                lags.append(lag)
+                dims.append(dim)
+            lags = np.array(lags, dtype="uint8")
+            dims = np.array(dims, dtype="uint8")
 
-        plot_hist2d(a=lags, b=dims, ylabel="lag", xlabel="dims")
+            plot_hist2d(a=lags, b=dims, ylabel="lag", xlabel="dims")
+        elif use == "SE":
+            embedding_dims: List[Tuple[int, int]] = []
+            for x, y in tqdm(zip(samples, labels), total=len(samples)):
+                dim = get_spectral_envelope_max(signal=x, h=np.ones(5))
+                dim = idx_to_lag(dim, N=x.shape[0])
+
+                embedding_dims.append((dim, y))
+
+            for label in set(labels):
+                dims_ = [e for e, y in embedding_dims if y == label]
+                plt.hist(dims_, label=str(label), alpha=0.5)
+
+            plt.legend()
+            plt.show()
 
     def __getitem__(self, item: int) -> Tuple[torch.tensor, torch.tensor]:
         if self._recurrence_plots is None:

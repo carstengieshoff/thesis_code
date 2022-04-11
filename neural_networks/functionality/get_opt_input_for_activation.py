@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from neural_networks.functionality.get_activations import get_activations
+from neural_networks.functionality.get_activations import get_out_activations
 
 
 def get_opt_input_for_activation(
@@ -21,8 +21,8 @@ def get_opt_input_for_activation(
     optim = torch.optim.Adam([init], lr=1e-1, weight_decay=1e-6)
 
     for i in range(num_steps):
-        activation = get_activations(model=model, model_input=init)[layer_name]
-        diff = -1 * activation[:, channel, :, :].mean()
+        activation = get_out_activations(model=model, model_input=init)[layer_name]
+        diff = -1 * activation[:, channel].mean()
         diff.backward()
         optim.step()
         optim.zero_grad()

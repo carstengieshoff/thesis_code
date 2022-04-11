@@ -23,11 +23,11 @@ class VAE(nn.Module):  # type: ignore
     def decoder(self, z: torch.tensor) -> torch.tensor:
         return z
 
-    def reparameterize(self, mu: torch.tensor, sigma: torch.tensor) -> torch.tensor:
-        std = torch.exp(sigma / 2)
+    def reparameterize(self, mu: torch.tensor, logvar: torch.tensor) -> torch.tensor:
+        std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
-        z = mu + std * eps
-        self.kl = (std**2 + mu**2 - torch.log(std) - 1 / 2).mean()
+        z = eps.mul(std).add_(mu)
+        self.kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         return z
 
     def forward(self, x: torch.tensor) -> torch.tensor:

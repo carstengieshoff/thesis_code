@@ -5,7 +5,7 @@ from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid
 
-from neural_networks.functionality.get_activations import get_activations
+from neural_networks.functionality.get_activations import get_out_activations
 
 
 def save_activation(
@@ -21,7 +21,7 @@ def save_activation(
     #    raise RuntimeError(f"Expecting `model` to be of type `nn.Sequential`; got {type(model)}")
 
     global_name = "" if global_name is None else global_name + "_"
-    activations = get_activations(model=model, model_input=model_input)
+    activations = get_out_activations(model=model, model_input=model_input)
 
     for layer_name in layers:
         if with_relu:

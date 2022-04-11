@@ -21,8 +21,7 @@ def plot_scatter(
     *args: Any,
     **kwargs: Any,
 ) -> None:
-    if layer_name not in model.modules.keys():
-        raise KeyError(f"Unknown `layer_name` {layer_name}")
+
     vectors: List[torch.tensor] = []
     labels: List[torch.tensor] = []
 

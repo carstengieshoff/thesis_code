@@ -16,6 +16,7 @@ def plot_scatter(
     model: nn.Module,
     loader: DataLoader,
     layer_name: str,
+    device: torch.device,
     dim_reduction: str = "normal",
     writer: Optional[SummaryWriter] = None,
     *args: Any,
@@ -26,6 +27,7 @@ def plot_scatter(
     labels: List[torch.tensor] = []
 
     for input, label in loader:
+        input = input.to(device)
         vectors.append(get_inp_activations(model=model, model_input=input)[layer_name])
         labels.append(label)
 

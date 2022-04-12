@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, List, Optional
 
 import numpy as np
@@ -24,10 +25,10 @@ class VAE(nn.Module):  # type: ignore
         return z
 
     def reparameterize(self, mu: torch.tensor, logvar: torch.tensor) -> torch.tensor:
+        self.kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         z = eps.mul(std).add_(mu)
-        self.kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         return z
 
     def forward(self, x: torch.tensor) -> torch.tensor:
@@ -125,3 +126,9 @@ class VAE(nn.Module):  # type: ignore
 
         ax.legend()
         plt.show()
+
+    def save(self, path: Path) -> None:
+        torch.save(self.state_dict(), path)
+
+    def load(self, path: Path) -> None:
+        self.load_state_dict(torch.load(path))

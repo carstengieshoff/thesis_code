@@ -18,7 +18,7 @@ class CNN(nn.Module):  # type: ignore
         super().__init__()
         self.writer = writer
         self.train_loss: List[float] = []
-        self.val_acc: List[float] = []
+        self.val_loss: List[float] = []
 
     def forward(self, x: torch.tensor) -> torch.tensor:
         return x
@@ -70,7 +70,7 @@ class CNN(nn.Module):  # type: ignore
                             self.val_loss.append(self.evaluate_nn(validationloader, device=device))
                             self.writer.add_scalars(
                                 "Training",
-                                {"training loss": self.train_loss[-1], "validation loss": self.val_loss[-1]},
+                                {"training loss": self.train_loss[-1], "validation acc": self.val_loss[-1]},
                                 epoch * n_total_steps + i,
                             )
                         else:
@@ -107,8 +107,8 @@ class CNN(nn.Module):  # type: ignore
         losses = np.array(self.train_loss)
         losses_scaled = 100 * losses / losses.max()
         ax.plot(losses_scaled, label="loss")
-        if self.val_acc:
-            ax.plot(self.val_acc, label="validation")
+        if self.val_loss:
+            ax.plot(self.val_loss, label="validation")
 
         ax.legend()
         plt.show()

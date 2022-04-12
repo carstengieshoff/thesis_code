@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, List, Optional
 
 import numpy as np
@@ -115,3 +116,9 @@ class AutoEncoder(nn.Module):  # type: ignore
 
         ax.legend()
         plt.show()
+
+    def save(self, path: Path) -> None:
+        torch.save(self.state_dict(), path)
+
+    def load(self, path: Path) -> None:
+        self.load_state_dict(torch.load(path))

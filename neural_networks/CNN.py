@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, List, Optional
 
 import numpy as np
@@ -137,3 +138,9 @@ class CNN(nn.Module):  # type: ignore
             tag = f"ConfusionMatrix_{name}"
             self.writer.add_figure(tag, fig)
         plt.show()
+
+    def save(self, path: Path) -> None:
+        torch.save(self.state_dict(), path)
+
+    def load(self, path: Path) -> None:
+        self.load_state_dict(torch.load(path))

@@ -50,6 +50,6 @@ def plot_scatter(
     plt.legend()
 
     if writer is not None:
-        writer.add_figure(tag=f"Scatter_{layer_name}", fig=fig)
+        writer.add_figure(tag=f"Scatter_{layer_name}", figure=fig)
 
     plt.show()

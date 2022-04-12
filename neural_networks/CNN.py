@@ -19,6 +19,7 @@ class CNN(nn.Module):  # type: ignore
         self.writer = writer
         self.train_loss: List[float] = []
         self.val_loss: List[float] = []
+        print("val_loss", self.val_loss)
 
     def forward(self, x: torch.tensor) -> torch.tensor:
         return x
@@ -144,3 +145,14 @@ class CNN(nn.Module):  # type: ignore
 
     def load(self, path: Path) -> None:
         self.load_state_dict(torch.load(path))
+
+
+if __name__ == "__main__":
+
+    class Autoencoder(CNN):
+        def __init__(self) -> None:
+            super(Autoencoder, self).__init__()
+
+    net = Autoencoder()
+
+    print(net.val_loss)

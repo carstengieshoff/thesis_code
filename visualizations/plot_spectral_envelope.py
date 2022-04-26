@@ -20,8 +20,10 @@ def plot_spectral_envelope(x: np.array, Fs: int, h: Optional[np.array] = None, *
 
     ax.plot(xf, 2.0 / signal_len * np.abs(freqs[: signal_len // 2]))
     ax.grid()
-    ax.set_title(f"Spectral Envelope, Fs={Fs}, max at {max_freq} [Hz] (lag = {np.floor(signal_len/max_idx)})")
-    ax.set_ylabel("Magnitude [dB]")
-    ax.set_xlabel("Frequency [Hz]")
+    ax.set_title(
+        f"Spectral Envelope, Fs={Fs}, max at {max_freq} [Hz] (lag = {np.ceil(signal_len/max_idx)})", fontsize="xx-large"
+    )
+    ax.set_ylabel("Magnitude [dB]", fontsize="x-large")
+    ax.set_xlabel("Frequency [Hz]", fontsize="x-large")
 
     plt.show()

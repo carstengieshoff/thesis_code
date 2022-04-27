@@ -540,7 +540,7 @@ def post_process(aa_signal: np.array, r_peaks: np.array, threshold: float = 4, H
         end = min(signal_len, peak + H)
         poor_leads = np.argwhere(scores[i, :] >= threshold)
 
-        aa_signal[start:end, poor_leads] *= 1 / threshold
+        aa_signal[start:end, poor_leads] *= 1 / (2 * threshold)
 
     return aa_signal
 

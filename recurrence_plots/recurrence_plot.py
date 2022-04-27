@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any, Callable, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
-import numpy
 import numpy as np
 from scipy.spatial.distance import cdist
 from skimage.transform import resize

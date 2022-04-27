@@ -23,8 +23,10 @@ class ASVCancellator:
         smooth_transitions: bool = True,
         use_weights: bool = False,
         fit_min_max: bool = False,
+        post_processing_threshold: Optional[float] = None,
         P: int = 40,
         M: int = 20,
+        H: int = 50,
     ):
 
         self.with_shift = with_shift
@@ -37,6 +39,8 @@ class ASVCancellator:
         self.fit_min_max = fit_min_max
         self.P = P
         self.M = M
+        self.post_processing_threshold = post_processing_threshold
+        self.H = H
 
     def reconstruct(self, *args: Any, **kwargs: Any) -> np.array:
         return self.__call__(*args, **kwargs)
@@ -118,6 +122,10 @@ class ASVCancellator:
         if pad_back > 0:
             aa_signal_reconstructed = aa_signal_reconstructed[:-pad_back]
 
+        if self.post_processing_threshold is not None:
+            aa_signal_reconstructed = post_process(
+                aa_signal_reconstructed, r_peaks=r_peaks, threshold=self.post_processing_threshold, H=self.H
+            )
         # Plot (optionally)
         if plot_all:
             self._plot_all(
@@ -522,12 +530,28 @@ def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50) -> np.array
         return numerator / denom
 
 
+def post_process(aa_signal: np.array, r_peaks: np.array, threshold: float = 4, H: int = 50) -> np.array:
+    signal_len, n_leads = aa_signal.shape
+    aa_signal = aa_signal.copy()
+    scores = evaluate_VR(aa_signal=aa_signal, r_peaks=r_peaks)
+
+    for i, peak in enumerate(r_peaks):
+        start = max(0, peak - H)
+        end = min(signal_len, peak + H)
+        poor_leads = np.argwhere(scores[i, :] >= threshold)
+
+        aa_signal[start:end, poor_leads] *= 1 / threshold
+
+    return aa_signal
+
+
 if __name__ == "__main__":
     from scipy.io import loadmat
     from scipy.signal import cheby2
 
     from signal_processing import detqrs3
-    from visualizations import plot_filter, plot_spectral_envelope
+
+    # from visualizations import plot_filter, plot_spectral_envelope
 
     data = loadmat("../tests/data/detqrs_data.mat")
     # qrs_locs = data["qrs_locs"].squeeze() - 1
@@ -535,45 +559,70 @@ if __name__ == "__main__":
     data_centered = data_centered - data_centered.mean(axis=0)
     fs = 1000
 
-    plot_spectral_envelope(data_centered, Fs=fs)
+    # plot_spectral_envelope(data_centered, Fs=fs)
 
-    plt.plot(data_centered)
-    plt.show()
+    # plt.plot(data_centered)
+    # plt.show()
 
     # Create and review filter
     [b, a] = cheby2(3, 20, [1, 100], btype="bandpass", fs=fs)
-    plot_filter(b, a, fs)
-    plt.show()
+    # plot_filter(b, a, fs)
+    # plt.show()
     data_centered = filtfilt(b, a, data_centered, axis=0)
 
     [b, a] = cheby2(3, 20, 5, btype="highpass", fs=fs)
-    plot_filter(b, a, fs)
-    plt.show()
+    # plot_filter(b, a, fs)
+    # plt.show()
     data_centered = filtfilt(b, a, data_centered, axis=0)
 
     # Filter all signals and show example
-    plot_spectral_envelope(data_centered, Fs=fs)
-    plt.show()
+    # plot_spectral_envelope(data_centered, Fs=fs)
+    # plt.show()
 
-    plt.plot(data_centered)
-    plt.show()
+    # plt.plot(data_centered)
+    # plt.show()
 
     qrs_locs = detqrs3(data_centered[:, 0], fs)  # get_r_peaks(data_centered[:,0], fs)
     asvc = ASVCancellator(
-        with_shift=True, P=40, M=20, use_clustering=False, pos_neg_fit=True, smooth_template=None, use_weights=True
+        with_shift=True,
+        P=40,
+        M=20,
+        use_clustering=False,
+        pos_neg_fit=True,
+        smooth_template=None,
+        use_weights=True,
+        post_processing_threshold=4,
     )
 
-    for lead in [1, 9]:
-        data = data_centered[:, lead].reshape(-1, 1)
-        qrs_locs = detqrs3(data, fs)
-        data_af = asvc(
-            original_signal=data,
-            r_peaks=qrs_locs[:],
-            verbose=True,
-            savefig=True,
-            plot_all=False,
-            plot_single_windows=[],
-        )
+    data = data_centered
+    qrs_locs = detqrs3(data[:, 0], fs)
+    data_af = asvc(
+        original_signal=data[:, :],
+        r_peaks=qrs_locs[:],
+        verbose=True,
+        savefig=True,
+        plot_all=True,
+        plot_single_windows=[],
+    )
 
     # print(f"VR original signal: {evaluate_VR(data, r_peaks=qrs_locs)}")
-    print(f"VR processed signal: {evaluate_VR(data_af, r_peaks=qrs_locs)}")
+    vr = evaluate_VR(data_af, r_peaks=qrs_locs)
+    print(f"VR processed signal: {vr}")
+
+    fig, ax = plt.subplots(3, 1, figsize=(20, 12))
+    ax[0].plot(data_af[:, 9])
+    ax[0].scatter(qrs_locs, data_af[qrs_locs, 9], marker="o", color="red")
+    for peak in qrs_locs:
+        ax[0].axvspan(peak - 50, peak + 50, alpha=0.2)
+    ax[0].set_title("Original", fontsize="xx-large")
+
+    data_af_cleaned = post_process(data_af, qrs_locs, H=50, threshold=5)
+    ax[1].plot(data_af_cleaned[:, 9])
+    ax[1].scatter(qrs_locs, data_af_cleaned[qrs_locs, 9], marker="o", color="red")
+    for peak in qrs_locs:
+        plt.axvspan(peak - 50, peak + 50, alpha=0.2)
+    ax[1].set_title("Cleaned", fontsize="xx-large")
+
+    ax[2].plot(data_af_cleaned[:, 9] - data_af[:, 9])
+    ax[2].set_title("Difference", fontsize="xx-large")
+    plt.show()

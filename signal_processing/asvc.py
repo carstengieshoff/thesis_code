@@ -23,8 +23,10 @@ class ASVCancellator:
         smooth_transitions: bool = True,
         use_weights: bool = False,
         fit_min_max: bool = False,
+        post_processing_threshold: Optional[float] = None,
         P: int = 40,
         M: int = 20,
+        H: int = 50,
     ):
 
         self.with_shift = with_shift
@@ -37,6 +39,8 @@ class ASVCancellator:
         self.fit_min_max = fit_min_max
         self.P = P
         self.M = M
+        self.post_processing_threshold = post_processing_threshold
+        self.H = H
 
     def reconstruct(self, *args: Any, **kwargs: Any) -> np.array:
         return self.__call__(*args, **kwargs)
@@ -118,6 +122,10 @@ class ASVCancellator:
         if pad_back > 0:
             aa_signal_reconstructed = aa_signal_reconstructed[:-pad_back]
 
+        if self.post_processing_threshold is not None:
+            aa_signal_reconstructed = post_process(
+                aa_signal_reconstructed, r_peaks=r_peaks, threshold=self.post_processing_threshold, H=self.H
+            )
         # Plot (optionally)
         if plot_all:
             self._plot_all(
@@ -576,7 +584,14 @@ if __name__ == "__main__":
 
     qrs_locs = detqrs3(data_centered[:, 0], fs)  # get_r_peaks(data_centered[:,0], fs)
     asvc = ASVCancellator(
-        with_shift=True, P=40, M=20, use_clustering=False, pos_neg_fit=True, smooth_template=None, use_weights=True
+        with_shift=True,
+        P=40,
+        M=20,
+        use_clustering=False,
+        pos_neg_fit=True,
+        smooth_template=None,
+        use_weights=True,
+        post_processing_threshold=4,
     )
 
     data = data_centered

@@ -40,7 +40,7 @@ def sample_record_to(record: wfdb.Record, fs_target: int = 500) -> wfdb.Record:
 
 def shorten_record(record: wfdb.Record, start: int = 0, signal_length: int = 5000) -> Optional[wfdb.Record]:
     if record.sig_len < start + signal_length:
-        return None
+        return record
 
     record.d_signal = record.d_signal[start : start + signal_length]
     record.sig_len = signal_length

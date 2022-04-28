@@ -18,7 +18,6 @@ class ASVCancellator:
         with_shift: bool = True,
         use_clustering: bool = False,
         min_cluster_size: Optional[int] = None,
-        smooth_template: Optional[int] = None,
         pos_neg_fit: bool = False,
         smooth_transitions: bool = True,
         use_weights: bool = False,
@@ -33,7 +32,6 @@ class ASVCancellator:
         self.with_shift = with_shift
         self.use_clustering = use_clustering
         self.min_cluster_size = min_cluster_size
-        self.smooth_template = smooth_template
         self.pos_neg_fit = pos_neg_fit
         self.smooth_transitions = smooth_transitions
         self.use_weights = use_weights
@@ -71,14 +69,6 @@ class ASVCancellator:
         pad_back = max(0, r_peaks.max() + back - original_signal.shape[0] + 1)
         r_peaks_shifted = r_peaks + pad_front
 
-        # signal_padded = np.vstack(
-        #     [
-        #         np.zeros(shape=(pad_front, original_signal.shape[1])),
-        #         original_signal,
-        #         np.zeros(shape=(pad_back, original_signal.shape[1])),
-        #     ]
-        # )
-
         signal_padded = np.vstack(
             [
                 original_signal[r_peaks[1] - front : r_peaks[1] - front + pad_front, :],
@@ -96,10 +86,6 @@ class ASVCancellator:
         template, cluster_labels = self._get_template(
             rr_windows, plot_templates=verbose, use_clustering=self.use_clustering, min_cluster_size=min_cluster_size
         )
-
-        if self.smooth_template is not None:
-            h = np.ones(self.smooth_template) / self.smooth_template
-            template = filtfilt(h, 1, template, axis=2)
 
         # Fit template to window
         template_fitted = self._fit_template_to_windows(
@@ -642,7 +628,6 @@ if __name__ == "__main__":
         M=20,
         use_clustering=False,
         pos_neg_fit=False,
-        smooth_template=None,
         use_weights=True,
         post_processing_threshold=4,
         post_processing_type="linear",

@@ -24,6 +24,7 @@ class ASVCancellator:
         use_weights: bool = False,
         fit_min_max: bool = False,
         post_processing_threshold: Optional[float] = None,
+        post_processing_type: str = "gaussian",
         P: int = 40,
         M: int = 20,
         H: int = 50,
@@ -40,6 +41,7 @@ class ASVCancellator:
         self.P = P
         self.M = M
         self.post_processing_threshold = post_processing_threshold
+        self.post_processing_type = post_processing_type
         self.H = H
 
     def reconstruct(self, *args: Any, **kwargs: Any) -> np.array:
@@ -124,7 +126,11 @@ class ASVCancellator:
 
         if self.post_processing_threshold is not None:
             aa_signal_reconstructed = post_process(
-                aa_signal_reconstructed, r_peaks=r_peaks, threshold=self.post_processing_threshold, H=self.H
+                aa_signal_reconstructed,
+                r_peaks=r_peaks,
+                threshold=self.post_processing_threshold,
+                H=self.H,
+                type=self.post_processing_type,
             )
         # Plot (optionally)
         if plot_all:
@@ -147,6 +153,10 @@ class ASVCancellator:
                     windowed_signal=rr_windows,
                     template=template,
                     template_fitted=template_fitted,
+                    aa_signal=aa_signal_reconstructed,
+                    r_peaks=r_peaks,
+                    front=front,
+                    back=back,
                 )
 
         # Evaluate (optionally)
@@ -154,11 +164,24 @@ class ASVCancellator:
         return aa_signal_reconstructed
 
     def _plot_window(
-        self, lead: int, window: int, windowed_signal: np.array, template: np.array, template_fitted: np.array
+        self,
+        lead: int,
+        window: int,
+        windowed_signal: np.array,
+        template: np.array,
+        template_fitted: np.array,
+        aa_signal: np.array,
+        r_peaks: np.array,
+        front: int,
+        back: int,
     ) -> None:
 
         lead -= 1
         window -= 1
+
+        peak = r_peaks[window]
+        start = max(0, peak - front)
+        end = min(aa_signal.shape[0], peak + back)
 
         plt.figure(figsize=(15, 8))
         plt.plot(range(len(template[lead, window, :])), template[lead, window, :], label="Template")
@@ -167,11 +190,12 @@ class ASVCancellator:
             range(len(template_fitted[lead, window, :])), template_fitted[lead, window, :], label="Fitted Template (VA)"
         )
         plt.plot(
-            range(len(template_fitted[lead, window, :])),
-            windowed_signal[lead, window, :] - template_fitted[lead, window, :],
+            range(len(aa_signal[start:end, lead])),
+            aa_signal[start:end, lead],
             color="red",
             label="Diff (AA)",
         )
+        plt.axvspan(peak - self.H - start, peak + self.H - start, alpha=0.2)
         plt.legend()
         plt.grid()
         plt.title(f"Lead {lead+1}, window {window+1} | {str(self)}", fontsize="xx-large")
@@ -501,6 +525,10 @@ class ASVCancellator:
             string_repr.append(" Clustering")
         if self.pos_neg_fit:
             string_repr.append(" Pos-Neg fit")
+        if self.post_processing_threshold is not None:
+            string_repr.append(
+                f" Post-Pr: (Threshold {self.post_processing_threshold}, Type: {self.post_processing_type})"
+            )
 
         concatenator = "" if len(string_repr) == 0 else "with "
 
@@ -530,7 +558,9 @@ def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50) -> np.array
         return numerator / denom
 
 
-def post_process(aa_signal: np.array, r_peaks: np.array, threshold: float = 4, H: int = 50) -> np.array:
+def post_process(
+    aa_signal: np.array, r_peaks: np.array, threshold: float = 4, H: int = 50, type: str = "factor"
+) -> np.array:
     signal_len, n_leads = aa_signal.shape
     aa_signal = aa_signal.copy()
     scores = evaluate_VR(aa_signal=aa_signal, r_peaks=r_peaks)
@@ -540,7 +570,25 @@ def post_process(aa_signal: np.array, r_peaks: np.array, threshold: float = 4, H
         end = min(signal_len, peak + H)
         poor_leads = np.argwhere(scores[i, :] >= threshold)
 
-        aa_signal[start:end, poor_leads] *= 1 / (2 * threshold)
+        if type == "factor":
+            aa_signal[start:end, poor_leads] *= 1 / (2 * threshold)
+        elif type == "zero":
+            aa_signal[start:end, poor_leads] = 0
+        elif type == "gaussian":
+            n = end - start
+            weights = 1 - gaussian(n, 2 * np.sqrt(n))
+            weights = np.repeat(weights, axis=0, repeats=len(poor_leads)).reshape(n, -1, 1)
+            aa_signal[start:end, poor_leads] *= weights
+        elif type == "linear":
+            n = end - start
+            gap = np.repeat(np.arange(0, n).reshape(1, -1), repeats=len(poor_leads), axis=0) / n
+            gap = aa_signal[start, poor_leads] + gap * (aa_signal[end, poor_leads] - aa_signal[start, poor_leads])
+            gap = gap.T  # reshape(aa_signal[start:end, poor_leads].shape)
+            aa_signal[start:end, poor_leads] = np.expand_dims(
+                gap, axis=2
+            )  # .reshape(aa_signal[start:end, poor_leads].shape)
+        else:
+            raise ValueError("Unknown argument for `type`")
 
     return aa_signal
 
@@ -592,6 +640,7 @@ if __name__ == "__main__":
         smooth_template=None,
         use_weights=True,
         post_processing_threshold=4,
+        post_processing_type="linear",
     )
 
     data = data_centered

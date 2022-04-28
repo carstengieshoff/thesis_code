@@ -33,8 +33,8 @@ def sample_record_to(record: wfdb.Record, fs_target: int = 500) -> wfdb.Record:
     if record.fs == fs_target:
         return record
 
-    sample_ratio = fs_target // record.fs
-    record.d_signal = resample(record.d_signal, record.sig_len * sample_ratio, axis=0)
+    sample_ratio = fs_target / record.fs
+    record.d_signal = resample(record.d_signal, int(record.sig_len * sample_ratio), axis=0)
 
     record.fs = fs_target
     record.sig_len = record.d_signal.shape[0]

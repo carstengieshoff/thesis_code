@@ -18,7 +18,6 @@ class ASVCancellator:
         with_shift: bool = True,
         use_clustering: bool = False,
         min_cluster_size: Optional[int] = None,
-        smooth_template: Optional[int] = None,
         pos_neg_fit: bool = False,
         smooth_transitions: bool = True,
         use_weights: bool = False,
@@ -33,7 +32,6 @@ class ASVCancellator:
         self.with_shift = with_shift
         self.use_clustering = use_clustering
         self.min_cluster_size = min_cluster_size
-        self.smooth_template = smooth_template
         self.pos_neg_fit = pos_neg_fit
         self.smooth_transitions = smooth_transitions
         self.use_weights = use_weights
@@ -71,14 +69,6 @@ class ASVCancellator:
         pad_back = max(0, r_peaks.max() + back - original_signal.shape[0] + 1)
         r_peaks_shifted = r_peaks + pad_front
 
-        # signal_padded = np.vstack(
-        #     [
-        #         np.zeros(shape=(pad_front, original_signal.shape[1])),
-        #         original_signal,
-        #         np.zeros(shape=(pad_back, original_signal.shape[1])),
-        #     ]
-        # )
-
         signal_padded = np.vstack(
             [
                 original_signal[r_peaks[1] - front : r_peaks[1] - front + pad_front, :],
@@ -96,10 +86,6 @@ class ASVCancellator:
         template, cluster_labels = self._get_template(
             rr_windows, plot_templates=verbose, use_clustering=self.use_clustering, min_cluster_size=min_cluster_size
         )
-
-        if self.smooth_template is not None:
-            h = np.ones(self.smooth_template) / self.smooth_template
-            template = filtfilt(h, 1, template, axis=2)
 
         # Fit template to window
         template_fitted = self._fit_template_to_windows(
@@ -374,9 +360,10 @@ class ASVCancellator:
                 b = windowed_signal[lead, window, :].T.copy()
 
                 if use_weights:
+
                     weights = self._get_weights(window_size)
-                    X = np.diag(weights) @ X
-                    b = np.diag(weights) @ b
+                    X *= weights.reshape(-1, 1)
+                    b *= weights
 
                 lstq_results = np.linalg.lstsq(a=X, b=b)
                 templates_aligned[lead, window, :] = np.dot(design_matrix, lstq_results[0])
@@ -601,7 +588,11 @@ if __name__ == "__main__":
 
     # from visualizations import plot_filter, plot_spectral_envelope
 
-    data = loadmat("../tests/data/detqrs_data.mat")
+    try:
+        data = loadmat("./tests/data/detqrs_data.mat")
+    except FileNotFoundError:
+        data = loadmat("../tests/data/detqrs_data.mat")
+
     # qrs_locs = data["qrs_locs"].squeeze() - 1
     data_centered = data["data_centered"].T
     data_centered = data_centered - data_centered.mean(axis=0)
@@ -636,8 +627,7 @@ if __name__ == "__main__":
         P=40,
         M=20,
         use_clustering=False,
-        pos_neg_fit=True,
-        smooth_template=None,
+        pos_neg_fit=False,
         use_weights=True,
         post_processing_threshold=4,
         post_processing_type="linear",
@@ -645,33 +635,16 @@ if __name__ == "__main__":
 
     data = data_centered
     qrs_locs = detqrs3(data[:, 0], fs)
-    data_af = asvc(
-        original_signal=data[:, :],
-        r_peaks=qrs_locs[:],
-        verbose=True,
-        savefig=True,
-        plot_all=True,
-        plot_single_windows=[],
-    )
+    for i in range(30):
+        data_af = asvc(
+            original_signal=data[:, :],
+            r_peaks=qrs_locs[:],
+            verbose=False,
+            savefig=True,
+            plot_all=False,
+            plot_single_windows=[],
+        )
 
-    # print(f"VR original signal: {evaluate_VR(data, r_peaks=qrs_locs)}")
-    vr = evaluate_VR(data_af, r_peaks=qrs_locs)
-    print(f"VR processed signal: {vr}")
-
-    fig, ax = plt.subplots(3, 1, figsize=(20, 12))
-    ax[0].plot(data_af[:, 9])
-    ax[0].scatter(qrs_locs, data_af[qrs_locs, 9], marker="o", color="red")
-    for peak in qrs_locs:
-        ax[0].axvspan(peak - 50, peak + 50, alpha=0.2)
-    ax[0].set_title("Original", fontsize="xx-large")
-
-    data_af_cleaned = post_process(data_af, qrs_locs, H=50, threshold=5)
-    ax[1].plot(data_af_cleaned[:, 9])
-    ax[1].scatter(qrs_locs, data_af_cleaned[qrs_locs, 9], marker="o", color="red")
-    for peak in qrs_locs:
-        plt.axvspan(peak - 50, peak + 50, alpha=0.2)
-    ax[1].set_title("Cleaned", fontsize="xx-large")
-
-    ax[2].plot(data_af_cleaned[:, 9] - data_af[:, 9])
-    ax[2].set_title("Difference", fontsize="xx-large")
-    plt.show()
+        # print(f"VR original signal: {evaluate_VR(data, r_peaks=qrs_locs)}")
+        vr = evaluate_VR(data_af, r_peaks=qrs_locs)
+        print(f"VR processed signal: {vr}")

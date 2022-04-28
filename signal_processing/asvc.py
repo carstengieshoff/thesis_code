@@ -429,8 +429,8 @@ class ASVCancellator:
                 start = np.argmin(diff[:P])
                 end = np.argmin(diff[-P:]) + window_size - P
 
-                template[lead, window, :start] = 0
-                template[lead, window, end:] = 0
+                template[lead, window, :start] = aa_signal[lead, window, :start]
+                template[lead, window, end:] = aa_signal[lead, window, end:]
 
                 aa_signal[lead, window, :] -= template[lead, window, :]
 

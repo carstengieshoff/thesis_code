@@ -1,3 +1,4 @@
+import logging
 from copy import deepcopy
 from typing import List, Optional
 
@@ -17,6 +18,8 @@ SNOMED_CODE_2_LABEL = {
     "164931005": "st elevation",
     "164884008": "ventricular ectopics",
 }
+
+logging.basicConfig(level=logging.INFO)
 
 
 def filter_record(record: wfdb.Record, b: np.array, a: np.array) -> wfdb.Record:
@@ -73,7 +76,11 @@ def get_qrs_locs(
     if access_option == "infer":
         qrs_locs = xqrs_detect(sig=record.d_signal[:, channel], fs=record.fs, verbose=False, learn=False)
         if with_correction:
-            qrs_locs = correct_peaks(record.d_signal[:, 0], qrs_locs, search_radius=10, smooth_window_size=3)
+            try:
+                qrs_locs = correct_peaks(record.d_signal[:, 0], qrs_locs, search_radius=10, smooth_window_size=3)
+            except IndexError:
+                logging.info(f"Cannot optimize peaks for Record {record.record_name} due to `IndexError`")
+
     elif access_option == "read":
         qrs_locs = _get_comment_line(record, indicator="r_peaks:")
         qrs_locs = np.array([int(s) for s in qrs_locs.split(",")])

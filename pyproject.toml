@@ -32,6 +32,7 @@ py-ecg-detectors = "^1.2.0"
 torchvision = "^0.12.0"
 tensorboard = "^2.8.0"
 tensorflow = "^2.8.0"
+google = "^3.0.0"
 
 [tool.poetry.dev-dependencies]
 

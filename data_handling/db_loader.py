@@ -29,9 +29,9 @@ def load_db(dbs: Optional[List[str]] = None, qrs_removed: bool = True, target_fi
     if qrs_removed:
         drive.mount("/content/drive")
         for db in dbs:
-            logging.info(f"\n Getting {db}_noQRs")
-            os.system(f"wget -O {target_file}/{db}_noQRs.tar.gz ./drive/MyDrive/thesis/data/{db}_noQrs.tar.gz")
-            logging.info(f"\n Extracting {db}_noQRs")
+            logging.info(f"\n Getting {db}_noQrs")
+            os.system(f"wget -O {target_file}/{db}_noQrs.tar.gz ./drive/MyDrive/thesis/data/{db}_noQrs.tar.gz")
+            logging.info(f"\n Extracting {db}_noQrs")
             os.system(f"tar -xf {target_file}/{db}_noQrs.tar.gz")
             os.system(f"mv {db}_noQrs {target_file}/{db}_noQrs")
             os.system(f"rm {target_file}/{db}_noQrs.tar.gz")

@@ -41,9 +41,7 @@ CDIST_OPTIONS = [
 
 def normalize(data: np.array) -> np.array:
     """Linear transform all distances in the RP to the interval (0,1)."""
-    min_dist = np.min(data)
-    max_dist = np.max(data)
-    data = (data - min_dist) / (max_dist - min_dist)
+    data /= data.max()
     return data
 
 
@@ -87,7 +85,7 @@ class RecurrencePlot:
     ) -> np.ndarray:
         if threshold is None:
             rp_data = self._unthresholded_rp
-            if size:
+            if size is not None:
                 rp_data = normalize(resize(rp_data, size))
             return rp_data
         else:
@@ -208,45 +206,46 @@ if __name__ == "__main__":
     import time
 
     from embeddings.lag_emebedding import LagEmbedding
-    from embeddings.utils.fnn import fnn
-    from embeddings.utils.mutual_information import mutual_information
+    # from embeddings.utils.fnn import fnn
+    # from embeddings.utils.mutual_information import mutual_information
     from signals.artificial_signals import Chirp
 
-    s = Chirp(frequency_start=1, frequency_end=40, sampling_rate=1000, sec=1, noise_rate=0)
+    s = Chirp(frequency_start=1, frequency_end=40, sampling_rate=1000, sec=2, noise_rate=0)
     signal = s.generate()
-    s.show()
+    # s.show()
 
-    lag = mutual_information(signal=signal)
-    dim = fnn(signal=signal, lag=lag)
-    embedding = LagEmbedding(dim=dim, lag=lag)
+    # lag = mutual_information(signal=signal)
+    # dim = fnn(signal=signal, lag=lag)
+    embedding = LagEmbedding(dim=1, lag=1)
     calculator = RecurrencePlotCalculator(embedding=embedding, metric="cosine")
-    print(calculator)
+    # print(calculator)
 
     start = time.time()
-    rp = calculator.generate(signal=signal)
-    rp.normalize()
+    for i in range(30):
+        rp = calculator.generate(signal=signal)
+        rp.get_rp(threshold="relative", epsilon=0.2)
     end = time.time()
     print("Elapsed = %s" % (end - start))
 
-    fig = plt.figure(figsize=(15, 8))
-
-    ax = plt.subplot(212)
-    ax.plot(signal)
-    ax.set_title("Signal", fontsize="large")
-
-    ax = plt.subplot(231)
-    plot_rp(rp.get_rp(), fig=fig, ax=ax, colorbar=True)
-    ax.set_title("Unthresholed RP", fontsize="large")
-
-    ax = plt.subplot(232)
-    plot_rp(rp.get_rp(threshold="relative", epsilon=0.2), fig=fig, ax=ax, cmap="binary")
-    ax.set_title("Thresholed RP (eps= 0.2)", fontsize="large")
-
-    ax = plt.subplot(233)
-    plot_rp(rp.get_rp(threshold="relative", epsilon=0.01), fig=fig, ax=ax, cmap="binary")
-    ax.set_title("Thresholed RP (eps= 0.01)", fontsize="large")
-
-    plt.savefig("./rp_example")
-    plt.show()
-
-    print(rp)
+    # fig = plt.figure(figsize=(15, 8))
+#
+# ax = plt.subplot(212)
+# ax.plot(signal)
+# ax.set_title("Signal", fontsize="large")
+#
+# ax = plt.subplot(231)
+# plot_rp(rp.get_rp(), fig=fig, ax=ax, colorbar=True)
+# ax.set_title("Unthresholed RP", fontsize="large")
+#
+# ax = plt.subplot(232)
+# plot_rp(rp.get_rp(threshold="relative", epsilon=0.2), fig=fig, ax=ax, cmap="binary")
+# ax.set_title("Thresholed RP (eps= 0.2)", fontsize="large")
+#
+# ax = plt.subplot(233)
+# plot_rp(rp.get_rp(threshold="relative", epsilon=0.01), fig=fig, ax=ax, cmap="binary")
+# ax.set_title("Thresholed RP (eps= 0.01)", fontsize="large")
+#
+# plt.savefig("./rp_example")
+# plt.show()
+#
+# print(rp)

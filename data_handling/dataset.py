@@ -26,7 +26,7 @@ class Dataset:
     def calc_rps(
         self,
         rp_calculator: RecurrencePlotCalculator,
-        normalize: bool = True,
+        normalize: bool = False,
         dtype: str = "float32",
         *args: Any,
         **kwargs: Any,

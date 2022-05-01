@@ -6,6 +6,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import chirp
 
+af_type_a = {
+    "f0": 6.0,
+    "df": 0.2,
+    "ff": 0.1,
+    "M": 5,
+    "al": np.array([150, 75, 45]),
+    "dal": np.array([50, 25, 15]),
+    "wa": 0.08,
+}
+
+af_type_b = {
+    "f0": 8.0,
+    "df": 0.3,
+    "ff": 0.23,
+    "M": 3,
+    "al": np.array([60, 50, 40]),
+    "dal": np.array([19, 15, 12]),
+    "wa": 0.08,
+}
+
 
 class ArtificialSignal(ABC):
     """Generate an artificial signal."""
@@ -104,6 +124,58 @@ class Chirp(ArtificialSignal):
         super().show(label=f"Freq: {self._frequency_start} Hz -> {self._frequency_end} Hz ", *args, **kwargs)
 
 
+class AF(ArtificialSignal):
+    """Create simulated AF according to https://ieeexplore.ieee.org/document/900266."""
+
+    def __init__(
+        self,
+        f0: float = 6.0,
+        df: float = 0.2,
+        ff: float = 0.1,
+        M: int = 5,
+        al: np.array = np.array([150, 75, 45]),
+        dal: np.array = np.array([50, 25, 15]),
+        wa: float = 0.08,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        super().__init__(*args, **kwargs)
+        self.f0 = f0
+        self.df = df
+        self.ff = ff
+        self.M = M
+        self.al = al
+        self.dal = dal
+        self.wa = wa
+
+    @ArtificialSignal.add_noise
+    def generate(self) -> np.array:
+        x = np.arange(1, self.sec * self.sampling_rate + 1) / self.sampling_rate
+        x = x.reshape(-1, 1)
+
+        theta = 2 * np.pi * self.f0 * x + self.df / self.ff * np.sin(2 * np.pi * self.ff * x)
+
+        self._data = -1 * sum(self._amplitude(i) * np.sin(i * theta) for i in range(1, self.M + 1))
+        return self._data
+
+    def _amplitude(self, i: int) -> np.array:
+        x = np.arange(1, self.sec * self.sampling_rate + 1).reshape(-1, 1) / self.sampling_rate
+        al = self.al.reshape(1, -1)
+        dal = self.dal.reshape(1, -1)
+        return 2 / (i * np.pi) * (al + dal * np.sin(2 * np.pi * self.wa * x))
+
+    def show(self, *args: Any, **kwargs: Any) -> None:
+        if self._data is None:
+            self._data = self.generate()
+
+        N = self._data.shape[1]
+        fig, ax = plt.subplots(N, 1, figsize=(20, N * 2))
+        for i in range(N):
+            ax[i].plot(self._data[:, i])
+        plt.suptitle("Simulated AF", fontsize="x-large")
+        plt.show()
+
+
 class Wavefront(ArtificialSignal):
     def __init__(
         self,
@@ -142,5 +214,5 @@ class Wavefront(ArtificialSignal):
 
 
 if __name__ == "__main__":
-    c = Wavefront(sampling_rate=100, sec=5, noise_rate=0)
-    c.show(num_frames=10000)
+    c = AF(sampling_rate=500, sec=10, noise_rate=10, **af_type_a)
+    c.show()

@@ -172,8 +172,7 @@ class AF(ArtificialSignal):
         fig, ax = plt.subplots(N, 1, figsize=(20, N * 2))
         for i in range(N):
             ax[i].plot(self._data[:, i])
-            ax[i].set_ylim(-200, 200)
-        plt.suptitle("3-lead simulated AF", fontsize="x-large")
+        plt.suptitle("Simulated AF", fontsize="x-large")
         plt.show()
 
 

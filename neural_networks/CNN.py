@@ -19,7 +19,6 @@ class CNN(nn.Module):  # type: ignore
         self.writer = writer
         self.train_loss: List[float] = []
         self.val_loss: List[float] = []
-        print("val_loss", self.val_loss)
 
     def forward(self, x: torch.tensor) -> torch.tensor:
         return x
@@ -42,7 +41,7 @@ class CNN(nn.Module):  # type: ignore
         running_loss = []
 
         for epoch in range(num_epochs):
-
+            self.train()
             for i, data in enumerate(trainloader, 0):
                 inputs, labels = data
                 labels = labels.to(device)
@@ -85,7 +84,7 @@ class CNN(nn.Module):  # type: ignore
     def evaluate_nn(self, loader: DataLoader, device: torch.device) -> float:
         correct = 0
         total = 0
-
+        self.eval()
         with torch.no_grad():
             for data in loader:
                 images, labels = data
@@ -116,7 +115,7 @@ class CNN(nn.Module):  # type: ignore
 
     def show_confusion_matrix(self, loader: DataLoader, device: torch.device, name: Optional[str] = None) -> None:
         name = "" if name is None else name
-
+        self.eval()
         true_label: List[int] = []
         predicted_label: List[int] = []
         with torch.no_grad():

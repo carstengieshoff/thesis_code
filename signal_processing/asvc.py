@@ -546,7 +546,7 @@ def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50) -> np.array
 
 
 def post_process(
-    aa_signal: np.array, r_peaks: np.array, threshold: float = 4, H: int = 50, type: str = "factor"
+    aa_signal: np.array, r_peaks: np.array, threshold: float = 2, H: int = 50, type: str = "factor"
 ) -> np.array:
     signal_len, n_leads = aa_signal.shape
     aa_signal = aa_signal.copy()
@@ -563,7 +563,7 @@ def post_process(
             aa_signal[start:end, poor_leads] = 0
         elif type == "gaussian":
             n = end - start
-            weights = 1 - gaussian(n, 2 * np.sqrt(n))
+            weights = 1 - (2 * threshold - 1) / (2 * threshold) * gaussian(n, 2 * np.sqrt(n))
             weights = np.repeat(weights, axis=0, repeats=len(poor_leads)).reshape(n, -1, 1)
             aa_signal[start:end, poor_leads] *= weights
         elif type == "linear":

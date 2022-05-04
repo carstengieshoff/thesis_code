@@ -13,10 +13,16 @@ def plot_ecg(
     legend: bool = True,
     title: Optional[str] = None,
     show: bool = True,
+    xmin: Optional[int] = None,
+    xmax: Optional[int] = None,
 ) -> None:
     if len(signal.shape) == 1:
         signal = signal.reshape(-1, 1)
+
     signal_len, num_leads = signal.shape
+
+    xmin = 0 if xmin is None else xmin
+    xmax = signal_len if xmax is None else xmax
 
     fig, ax = plt.subplots(num_leads, 1, figsize=(30, 2 * num_leads))
     for lead in range(num_leads):
@@ -30,6 +36,8 @@ def plot_ecg(
                     )
         if q_locs is not None:
             ax[lead].scatter(q_locs, signal[q_locs, lead], marker="*", color="red", label="Q-loc")
+
+        ax[lead].set_xlim(xmin, xmax)
 
     if legend:
         ax[0].legend(fontsize="x-large")
@@ -55,8 +63,10 @@ if __name__ == "__main__":
 
     plot_ecg(
         signal=ecg[:, :4],
-        r_peaks=r_peaks[r_peaks <= ecg.shape[0]],
+        r_peaks=None,  # r_peaks[r_peaks <= ecg.shape[0]],
         q_locs=q_locs[q_locs <= ecg.shape[0]],
         front=25,
         back=int(0.8 * rr_min),
+        xmin=1000,
+        xmax=3000,
     )

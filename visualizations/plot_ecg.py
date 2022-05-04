@@ -52,21 +52,22 @@ def plot_ecg(
 if __name__ == "__main__":
     from wfdb.processing import gqrs_detect, xqrs_detect
 
-    ecg = np.load("../data/SR1.npy")
-    Fs = 500
-    ecg = (ecg - ecg.mean(axis=0)) * 10  # /ecg.std(axis=0)
-    calc_lead = 0
+    for s in ["SR1", "SR2", "AF1", "AF2"]:
+        ecg = np.load(f"../data/{s}.npy")
+        Fs = 500
+        ecg = (ecg - ecg.mean(axis=0)) * 10  # /ecg.std(axis=0)
+        calc_lead = 1
 
-    q_locs = gqrs_detect(np.concatenate([ecg[:, calc_lead], ecg[:Fs, calc_lead]]), fs=Fs)
-    r_peaks = xqrs_detect(ecg[:, calc_lead], Fs, verbose=False)
-    rr_min = (r_peaks[1:] - r_peaks[:-1]).min()
+        q_locs = gqrs_detect(np.concatenate([ecg[:, calc_lead], ecg[:Fs, calc_lead]]), fs=Fs)
+        r_peaks = xqrs_detect(ecg[:, calc_lead], Fs, verbose=False)
+        rr_min = (r_peaks[1:] - r_peaks[:-1]).min()
 
-    plot_ecg(
-        signal=ecg[:, :4],
-        r_peaks=None,  # r_peaks[r_peaks <= ecg.shape[0]],
-        q_locs=q_locs[q_locs <= ecg.shape[0]],
-        front=25,
-        back=int(0.8 * rr_min),
-        xmin=1000,
-        xmax=3000,
-    )
+        plot_ecg(
+            signal=ecg[:, :2],
+            r_peaks=None,  # r_peaks[r_peaks <= ecg.shape[0]],
+            q_locs=q_locs[q_locs <= ecg.shape[0]],
+            front=25,
+            back=int(0.8 * rr_min),
+            xmin=None,
+            xmax=None,
+        )

@@ -5,7 +5,7 @@ from typing import List, Optional
 import numpy as np
 import wfdb
 from scipy.signal import filtfilt, resample
-from wfdb.processing import correct_peaks, xqrs_detect
+from wfdb.processing import correct_peaks, gqrs_detect, xqrs_detect
 
 SNOMED_CODE_2_LABEL = {
     "270492004": "1st degree av block",
@@ -69,27 +69,54 @@ def divide_record(record: wfdb.Record, signal_length: int = 5000) -> List[wfdb.R
     return records
 
 
-def get_qrs_locs(
+def get_rpeaks(
     record: wfdb.Record, channel: int = 0, with_correction: bool = False, access_option: str = "infer"
 ) -> np.array:
     """Wrapping `wfdb.processing.xqrs_detect`."""
     if access_option == "infer":
-        qrs_locs = xqrs_detect(sig=record.d_signal[:, channel], fs=record.fs, verbose=False, learn=False)
+        r_peaks = xqrs_detect(sig=record.d_signal[:, channel], fs=record.fs, verbose=False, learn=False)
         if with_correction:
             try:
-                qrs_locs = correct_peaks(record.d_signal[:, 0], qrs_locs, search_radius=10, smooth_window_size=3)
+                r_peaks = correct_peaks(
+                    record.d_signal[:, 0], r_peaks, search_radius=record.fs // 100, smooth_window_size=3
+                )
             except IndexError:
                 logging.info(f"Cannot optimize peaks for Record {record.record_name} due to `IndexError`")
 
     elif access_option == "read":
-        qrs_locs = _get_comment_line(record, indicator="r_peaks:")
-        qrs_locs = np.array([int(s) for s in qrs_locs.split(",")])
+        r_peaks = _get_comment_line(record, indicator="r_peaks:")
+        r_peaks = np.array([int(s) for s in r_peaks.split(",")])
     else:
         raise ValueError(
             f"`get_qrs_locs` expected `access_option` to be one of 'infer', 'read', but got {access_option}"
         )
 
-    return qrs_locs
+    return r_peaks
+
+
+def get_qr_locs(record: wfdb.Record, channel: int = 0, with_correction: bool = False) -> np.array:
+    """Wrapping `wfdb.processing.xqrs_detect`."""
+    fs = record.fs
+    r_peaks = get_rpeaks(record=record, channel=channel, with_correction=with_correction)
+
+    ecg = record.d_signal[:, channel]
+    ecg = (ecg - ecg.mean()) / ecg.std()
+
+    # Adding one second at the end, to delay an issue of the alogorith, where the last Q is located poorly
+    q_locs = gqrs_detect(np.concatenate([ecg, ecg[:fs]]), fs=fs)
+    # Removing Qs in added second
+    q_locs = q_locs[q_locs <= len(ecg)]
+
+    if r_peaks[0] - q_locs[0] < 0:
+        q_locs = np.insert(q_locs, 0, max(0, r_peaks.min() - int(0.033 * fs)))
+        logging.info(f"Adding a q-location for record {record.record_name} at location {q_locs[0]}")
+        s = min(len(q_locs), len(r_peaks))
+        q_locs = q_locs[:s]
+        r_peaks = r_peaks[:s]
+
+    q_locs[r_peaks - q_locs < 0.015 * fs] -= int(0.015 * fs)
+
+    return r_peaks, q_locs
 
 
 def get_label(record: wfdb.Record) -> int:
@@ -138,9 +165,38 @@ def write_record(record: wfdb.Record, write_dir: str) -> None:
 
 
 if __name__ == "__main__":
-    record = wfdb.rdrecord("./test_data/I0049", physical=False)
-    record.fs = 1234
-    record.comments.append("jiiiha")
-    write_record(record, "wfdb_utils/out_data")
+    record = wfdb.rdrecord("./JS00001", physical=False)
+
+    # write_record(record, "wfdb_utils/out_data")
+
+    from scipy.signal import cheby2
+
+    from visualizations import plot_ecg
+
+    [b, a] = cheby2(3, 20, [0.5, 30], btype="bandpass", fs=500)
+    record = filter_record(record, b, a)
+    channel = 1
+
+    r_peaks, q_locs = get_qr_locs(record, with_correction=True, channel=channel)
+    rr_diff = r_peaks[1:] - r_peaks[:-1]
+    rr_min = rr_diff.min()
+
+    r_peak_values = record.d_signal[r_peaks, channel]
+    if np.abs(r_peak_values)[0] < 0.5 * np.quantile(np.abs(r_peak_values), q=0.5):
+        print("R-peak Correction")
+        r_peaks = r_peaks[1:]
+        q_locs = q_locs[1:]
+        rr_diff = r_peaks[1:] - r_peaks[:-1]
+        rr_min = rr_diff.min()
+
+    plot_ecg(
+        signal=record.d_signal[:, :4],
+        r_peaks=r_peaks,  # r_peaks[r_peaks <= ecg.shape[0]],
+        q_locs=q_locs,
+        front=int(0.05 * record.fs),
+        back=int(0.8 * rr_min),
+        xmin=None,
+        xmax=None,
+    )
 
     print("Done")

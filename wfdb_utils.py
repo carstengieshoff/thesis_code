@@ -110,9 +110,10 @@ def get_qr_locs(record: wfdb.Record, channel: int = 0, with_correction: bool = F
     if r_peaks[0] - q_locs[0] < 0:
         q_locs = np.insert(q_locs, 0, max(0, r_peaks.min() - int(0.033 * fs)))
         logging.info(f"Adding a q-location for record {record.record_name} at location {q_locs[0]}")
-        s = min(len(q_locs), len(r_peaks))
-        q_locs = q_locs[:s]
-        r_peaks = r_peaks[:s]
+
+    s = min(len(q_locs), len(r_peaks))
+    q_locs = q_locs[:s]
+    r_peaks = r_peaks[:s]
 
     q_locs[r_peaks - q_locs < 0.015 * fs] -= int(0.015 * fs)
 

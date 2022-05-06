@@ -24,9 +24,12 @@ class ASVCancellator:
         fit_min_max: bool = False,
         post_processing_threshold: Optional[float] = None,
         post_processing_type: str = "gaussian",
+        fs: int = 500,
         P: int = 40,
-        M: int = 20,
+        M: int = 40,
         H: int = 50,
+        front: int = 50,
+        back: float = 0.6,
     ):
 
         self.with_shift = with_shift
@@ -36,11 +39,16 @@ class ASVCancellator:
         self.smooth_transitions = smooth_transitions
         self.use_weights = use_weights
         self.fit_min_max = fit_min_max
-        self.P = P
-        self.M = M
+        self.fs = fs
+        self.P = int(P / 1000 * self.fs)
+        self.M = int(M / 1000 * self.fs)
+        self.H = int(H / 1000 * self.fs)
         self.post_processing_threshold = post_processing_threshold
         self.post_processing_type = post_processing_type
         self.H = H
+
+        self.front = front
+        self.back = back
 
     def reconstruct(self, *args: Any, **kwargs: Any) -> np.array:
         return self.__call__(*args, **kwargs)
@@ -61,8 +69,8 @@ class ASVCancellator:
         r_peak_dist = r_peaks[1:] - r_peaks[:-1]
         r_peak_min = r_peak_dist.min()
 
-        front = int(0.3 * r_peak_min)
-        back = int(0.7 * r_peak_min)
+        front = int(self.front / 1000 * self.fs)
+        back = int(self.back * r_peak_min)
 
         # Pad signal
         pad_front = max(0, front - r_peaks.min())
@@ -433,7 +441,7 @@ class ASVCancellator:
                     template[lead, window, :start] = template[lead, window, start]  # aa_signal[lead, window, :start]
                     template[lead, window, end:] = (template[lead, window, end],)  # aa_signal[lead, window, end:]
                 else:
-                    start = (0,)
+                    start = 0
                     end = window_size
 
                 aa_signal[lead, window, :] -= template[lead, window, :]
@@ -479,7 +487,8 @@ class ASVCancellator:
                 reconstructed_signal = close_gap(reconstructed_signal, start - 1, M)
 
                 end = peak + back
-                reconstructed_signal = close_gap(reconstructed_signal, end, M)
+                if end + 1 < reconstructed_signal.shape[0]:
+                    reconstructed_signal = close_gap(reconstructed_signal, end, M)
 
         return reconstructed_signal
 

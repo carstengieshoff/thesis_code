@@ -125,6 +125,8 @@ class ASVCancellator:
                 threshold=self.post_processing_threshold,
                 H=self.H,
                 type=self.post_processing_type,
+                front=front,
+                back=back,
             )
         # Plot (optionally)
         if plot_all:
@@ -521,13 +523,18 @@ class ASVCancellator:
         return "ASCV " + concatenator + ", ".join(string_repr)
 
 
-def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50) -> np.array:
+def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50, front: int = 100, back: int = 350) -> np.array:
     signal_len, n_leads = aa_signal.shape
 
     aa_signal = aa_signal.copy()
     aa_signal = aa_signal - aa_signal.mean(axis=0, keepdims=True)
 
-    denom = np.power(aa_signal[r_peaks.min() : r_peaks.max(), :], 2)
+    denom_ = []
+    for peak in r_peaks:
+        denom_.append(aa_signal[peak - front : peak - H, :])
+        denom_.append(aa_signal[peak + H : peak + back, :])
+    denom = np.concatenate(denom_)
+    denom = np.power(denom, 2)
     denom = denom.mean(axis=0, keepdims=True)
 
     numerator = np.zeros(shape=(len(r_peaks), n_leads))
@@ -545,24 +552,31 @@ def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50) -> np.array
 
 
 def post_process(
-    aa_signal: np.array, r_peaks: np.array, threshold: float = 2, H: int = 50, type: str = "factor"
+    aa_signal: np.array,
+    r_peaks: np.array,
+    threshold: float = 2,
+    H: int = 50,
+    type: str = "factor",
+    front: int = 100,
+    back: int = 350,
 ) -> np.array:
     signal_len, n_leads = aa_signal.shape
     aa_signal = aa_signal.copy()
-    scores = evaluate_VR(aa_signal=aa_signal, r_peaks=r_peaks)
+    scores = evaluate_VR(aa_signal=aa_signal, r_peaks=r_peaks, front=front, back=back)
 
     for i, peak in enumerate(r_peaks):
         start = max(0, peak - H)
         end = min(signal_len, peak + H)
         poor_leads = np.argwhere(scores[i, :] >= threshold)
 
+        threshold = 1
         if type == "factor":
-            aa_signal[start:end, poor_leads] *= 1 / (2 * threshold)
+            aa_signal[start:end, poor_leads] *= 1 / (5 * threshold)
         elif type == "zero":
             aa_signal[start:end, poor_leads] = 0
         elif type == "gaussian":
             n = end - start
-            weights = 1 - (2 * threshold - 1) / (2 * threshold) * gaussian(n, 2 * np.sqrt(n))
+            weights = 1 - (5 * threshold - 1) / (5 * threshold) * gaussian(n, np.sqrt(2 * n))
             weights = np.repeat(weights, axis=0, repeats=len(poor_leads)).reshape(n, -1, 1)
             aa_signal[start:end, poor_leads] *= weights
         elif type == "linear":

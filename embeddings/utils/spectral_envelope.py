@@ -24,7 +24,6 @@ def spectral_envelope(signal: np.array, h: Optional[np.array] = None) -> np.arra
         h = h / h.sum()
         fz = filtfilt(h, 1, fz, axis=0)
     lam = np.array([np.abs(np.linalg.eig(f)[0]).max() for f in fz])
-
     return np.abs(lam)
 
 
@@ -69,7 +68,7 @@ if __name__ == "__main__":
     sin3.generate()
     chirp.generate()
 
-    data = np.vstack([sin1.data.T, sin2.data.T, sin3.data.T, chirp.data.T]).T
+    data = np.vstack([sin1.data.T, sin2.data.T, sin3.data.T]).T
 
     env = spectral_envelope(signal=data, h=None)
     fig, ax = plt.subplots(1, 2, figsize=(20, 10))

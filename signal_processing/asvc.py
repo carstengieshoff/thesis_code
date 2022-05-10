@@ -24,9 +24,12 @@ class ASVCancellator:
         fit_min_max: bool = False,
         post_processing_threshold: Optional[float] = None,
         post_processing_type: str = "gaussian",
+        fs: int = 500,
         P: int = 40,
-        M: int = 20,
+        M: int = 40,
         H: int = 50,
+        front: int = 50,
+        back: float = 0.6,
     ):
 
         self.with_shift = with_shift
@@ -36,11 +39,16 @@ class ASVCancellator:
         self.smooth_transitions = smooth_transitions
         self.use_weights = use_weights
         self.fit_min_max = fit_min_max
-        self.P = P
-        self.M = M
+        self.fs = fs
+        self.P = int(P / 1000 * self.fs)
+        self.M = int(M / 1000 * self.fs)
+        self.H = int(H / 1000 * self.fs)
         self.post_processing_threshold = post_processing_threshold
         self.post_processing_type = post_processing_type
         self.H = H
+
+        self.front = front
+        self.back = back
 
     def reconstruct(self, *args: Any, **kwargs: Any) -> np.array:
         return self.__call__(*args, **kwargs)
@@ -61,8 +69,8 @@ class ASVCancellator:
         r_peak_dist = r_peaks[1:] - r_peaks[:-1]
         r_peak_min = r_peak_dist.min()
 
-        front = int(0.3 * r_peak_min)
-        back = int(0.7 * r_peak_min)
+        front = int(self.front / 1000 * self.fs)
+        back = int(self.back * r_peak_min)
 
         # Pad signal
         pad_front = max(0, front - r_peaks.min())
@@ -117,6 +125,8 @@ class ASVCancellator:
                 threshold=self.post_processing_threshold,
                 H=self.H,
                 type=self.post_processing_type,
+                front=front,
+                back=back,
             )
         # Plot (optionally)
         if plot_all:
@@ -201,7 +211,7 @@ class ASVCancellator:
     ) -> None:
         signal_len, n_leads = original_signal.shape
 
-        fig, ax = plt.subplots(n_leads, 4, figsize=(50, 70))
+        fig, ax = plt.subplots(n_leads, 4, figsize=(50, original_signal.shape[1] * 5))
         plt.title("QRST-cancellation using" + str(self), fontsize="xx-large")
         if n_leads > 1:
             for lead in range(n_leads):
@@ -425,12 +435,16 @@ class ASVCancellator:
 
         for lead in range(n_leads):
             for window in range(n_windows):
-                diff = np.abs(windowed_signal[lead, window, :] - template[lead, window, :])
-                start = np.argmin(diff[:P])
-                end = np.argmin(diff[-P:]) + window_size - P
+                if P > 0:
+                    diff = np.abs(windowed_signal[lead, window, :] - template[lead, window, :])
+                    start = np.argmin(diff[:P])
+                    end = np.argmin(diff[-P:]) + window_size - P
 
-                template[lead, window, :start] = aa_signal[lead, window, :start]
-                template[lead, window, end:] = aa_signal[lead, window, end:]
+                    template[lead, window, :start] = template[lead, window, start]  # aa_signal[lead, window, :start]
+                    template[lead, window, end:] = (template[lead, window, end],)  # aa_signal[lead, window, end:]
+                else:
+                    start = 0
+                    end = window_size
 
                 aa_signal[lead, window, :] -= template[lead, window, :]
 
@@ -456,9 +470,9 @@ class ASVCancellator:
             window_end = peak + back + 1
 
             if window_start > last_window_end_idx + 1:
-                gap = reconstructed_signal[last_window_end_idx + 1 : window_start, :]
+                gap = reconstructed_signal[last_window_end_idx:window_start, :]
                 gap -= self._linreg(data=gap)
-                reconstructed_signal[last_window_end_idx + 1 : window_start, :] = gap
+                reconstructed_signal[last_window_end_idx:window_start, :] = gap
 
             last_window_end_idx = window_end
 
@@ -471,25 +485,12 @@ class ASVCancellator:
 
         if self.smooth_transitions:
             for window, peak in enumerate(r_peaks):
-                window_start = peak - front
-                window_end = peak + back + 1
+                start = peak - front
+                reconstructed_signal = close_gap(reconstructed_signal, start - 1, M)
 
-                for lead in range(reconstructed_signal.shape[1]):
-                    start = window_start + starts_ends[lead, window, 0]
-                    end = window_start + starts_ends[lead, window, 1]
-
-                    M_ = M
-                    gaussian_window = gaussian(2 * M_, np.sqrt(2 * M_))
-
-                    if start > M_:
-                        ks = (reconstructed_signal[start - 1, lead] - reconstructed_signal[start, lead]) / 2
-                        reconstructed_signal[start - M_ : start, lead] -= ks * gaussian_window[:M_]
-                        reconstructed_signal[start : start + M_, lead] += ks * gaussian_window[M_:]
-
-                    if end < reconstructed_signal.shape[0] - M_:
-                        ke = (reconstructed_signal[end, lead] - reconstructed_signal[end + 1, lead]) / 2
-                        reconstructed_signal[end - M_ + 1 : end + 1, lead] -= ke * gaussian_window[:M_]
-                        reconstructed_signal[end + 1 : end + M_ + 1, lead] += ke * gaussian_window[M_:]
+                end = peak + back
+                if end + 1 < reconstructed_signal.shape[0]:
+                    reconstructed_signal = close_gap(reconstructed_signal, end, M)
 
         return reconstructed_signal
 
@@ -522,13 +523,18 @@ class ASVCancellator:
         return "ASCV " + concatenator + ", ".join(string_repr)
 
 
-def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50) -> np.array:
+def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50, front: int = 100, back: int = 350) -> np.array:
     signal_len, n_leads = aa_signal.shape
 
     aa_signal = aa_signal.copy()
     aa_signal = aa_signal - aa_signal.mean(axis=0, keepdims=True)
 
-    denom = np.power(aa_signal[r_peaks.min() : r_peaks.max(), :], 2)
+    denom_ = []
+    for peak in r_peaks:
+        denom_.append(aa_signal[peak - front : peak - H, :])
+        denom_.append(aa_signal[peak + H : peak + back, :])
+    denom = np.concatenate(denom_)
+    denom = np.power(denom, 2)
     denom = denom.mean(axis=0, keepdims=True)
 
     numerator = np.zeros(shape=(len(r_peaks), n_leads))
@@ -546,24 +552,31 @@ def evaluate_VR(aa_signal: np.array, r_peaks: np.array, H: int = 50) -> np.array
 
 
 def post_process(
-    aa_signal: np.array, r_peaks: np.array, threshold: float = 2, H: int = 50, type: str = "factor"
+    aa_signal: np.array,
+    r_peaks: np.array,
+    threshold: float = 2,
+    H: int = 50,
+    type: str = "factor",
+    front: int = 100,
+    back: int = 350,
 ) -> np.array:
     signal_len, n_leads = aa_signal.shape
     aa_signal = aa_signal.copy()
-    scores = evaluate_VR(aa_signal=aa_signal, r_peaks=r_peaks)
+    scores = evaluate_VR(aa_signal=aa_signal, r_peaks=r_peaks, front=front, back=back)
 
     for i, peak in enumerate(r_peaks):
         start = max(0, peak - H)
         end = min(signal_len, peak + H)
         poor_leads = np.argwhere(scores[i, :] >= threshold)
 
+        threshold = 1
         if type == "factor":
-            aa_signal[start:end, poor_leads] *= 1 / (2 * threshold)
+            aa_signal[start:end, poor_leads] *= 1 / (5 * threshold)
         elif type == "zero":
             aa_signal[start:end, poor_leads] = 0
         elif type == "gaussian":
             n = end - start
-            weights = 1 - (2 * threshold - 1) / (2 * threshold) * gaussian(n, 2 * np.sqrt(n))
+            weights = 1 - (5 * threshold - 1) / (5 * threshold) * gaussian(n, np.sqrt(2 * n))
             weights = np.repeat(weights, axis=0, repeats=len(poor_leads)).reshape(n, -1, 1)
             aa_signal[start:end, poor_leads] *= weights
         elif type == "linear":
@@ -578,6 +591,22 @@ def post_process(
             raise ValueError("Unknown argument for `type`")
 
     return aa_signal
+
+
+def close_gap(signal: np.array, pos: int, M: int = 10, alpha: float = 1.0) -> np.array:
+    "Close gap between sample `pos` and `pos+1`"
+    if len(signal.shape) == 1:
+        signal = signal.reshape(-1, 1)
+    M = min(M, pos + 1, signal.shape[0] - (pos + 1))
+
+    gaussian_window = gaussian(2 * M, np.sqrt(M)).reshape(-1, 1)
+
+    delta = alpha * (signal[pos, :] - signal[pos + 1, :]) / 2
+
+    signal[pos + 1 - M : pos + 1, :] -= delta * gaussian_window[:M]
+    signal[pos + 1 : pos + M + 1, :] += delta * gaussian_window[M:]
+
+    return signal
 
 
 if __name__ == "__main__":
@@ -635,9 +664,9 @@ if __name__ == "__main__":
 
     data = data_centered
     qrs_locs = detqrs3(data[:, 0], fs)
-    for i in range(30):
+    for i in range(1):
         data_af = asvc(
-            original_signal=data[:, :],
+            original_signal=data[:, :3],
             r_peaks=qrs_locs[:],
             verbose=False,
             savefig=True,

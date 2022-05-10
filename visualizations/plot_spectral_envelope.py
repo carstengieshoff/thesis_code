@@ -43,3 +43,26 @@ def plot_spectral_envelope(
 
     if fig_and_ax_not_given:
         plt.show()
+
+
+if __name__ == "__main__":
+
+    import numpy as np
+
+    from signals import Chirp, Sinusoid
+
+    FS = 200
+    sec = 1
+    sin1 = Sinusoid(frequency=5, sampling_rate=FS, sec=sec, noise_rate=0.1)
+    sin2 = Sinusoid(frequency=2, sampling_rate=FS, sec=sec, noise_rate=0.2)
+    sin3 = Sinusoid(frequency=5, sampling_rate=FS, sec=sec, noise_rate=0.5)
+    chirp = Chirp(frequency_start=1, frequency_end=2, sampling_rate=FS, sec=sec, noise_rate=0.1)
+
+    sin1.generate()
+    sin2.generate()
+    sin3.generate()
+    chirp.generate()
+
+    data = np.vstack([sin1.data.T, sin2.data.T, sin3.data.T]).T
+
+    plot_spectral_envelope(data, Fs=200)

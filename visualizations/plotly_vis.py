@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -6,7 +8,7 @@ from plotly.subplots import make_subplots
 def plot_ecg_plotly(
     original: np.array,
     aa: np.array,
-    peaks: np.array,
+    peaks: Optional[np.array] = None,
     front: int = 0,
     back: int = 0,
     H: int = 0,

@@ -7,7 +7,7 @@ from plotly.subplots import make_subplots
 
 def plot_ecg_plotly(
     original: np.array,
-    aa: np.array,
+    aa: Optional[np.array] = None,
     peaks: Optional[np.array] = None,
     front: int = 0,
     back: int = 0,
@@ -38,11 +38,12 @@ def plot_ecg_plotly(
                 col=1,
             )
 
-        fig.add_trace(go.Line(y=aa[:, i], name="AA", line_color="Green", line_width=lw), row=row, col=1)
+        if aa is not None:
+            fig.add_trace(go.Line(y=aa[:, i], name="AA", line_color="Green", line_width=lw), row=row, col=1)
 
-        fig.add_trace(
-            go.Line(y=original[:, i] - aa[:, i], name="VA", line_color="red", line_width=lw / 2), row=row, col=1
-        )
+            fig.add_trace(
+                go.Line(y=original[:, i] - aa[:, i], name="VA", line_color="red", line_width=lw / 2), row=row, col=1
+            )
 
     if peaks is not None and front is not None and back is not None:
 

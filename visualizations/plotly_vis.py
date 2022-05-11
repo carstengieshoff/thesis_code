@@ -7,9 +7,9 @@ def plot_ecg_plotly(
     original: np.array,
     aa: np.array,
     peaks: np.array,
-    front: int,
-    back: int,
-    H: int,
+    front: int = 0,
+    back: int = 0,
+    H: int = 0,
     lw: float = 1.8,
     title: str = "QRST Cancellation",
 ) -> None:

@@ -13,6 +13,26 @@ logging.basicConfig(level=logging.INFO)
 
 
 class ASVCancellator:
+    """Implementing QRST-Cancellation according to https://iopscience.iop.org/article/10.1088/0967-3334/29/12/001.
+
+    Args:
+        with_shift: Boolean indicating whether to allow shifting of templates to better fit the individual windows.
+        use_clustering: Boolean indicating whether to cluster QRST complexes before calculating templates.
+        min_cluster_size: Only used if `use_clustering` is True. Minimal amount of QRST complexes to form a cluster.
+        pos_neg_fit: Boolean indicating whether to fit positiveand negative parts of the signal individuall
+        smooth_transitions: Boolean indicating whether to smooth signals at border between windows.,
+        M: Window size (one-side) to use for signal smoothing. To be provided as milliseconds.
+        use_weights: Whether to use weights for fitting the template to windows. This is designed to emphasize the fit
+         on the R-peak.,
+        post_processing_threshold: Whether to apply post-processing to reduce r-peak-residuals
+        post_processing_type: Post-processing type to use. Defaults to "gaussian".
+        H: Window size (one-sided) to consider for post-processing. To be provided as milliseconds. This defaults to 50
+        fs: The underlying sampling rate of the signals to be  processed.
+        front: Amount of milliseconds in front of r-peak to start QRST-Windows at.
+        back: Percentage of minimal RR-distance to use after r-peak for QRST-Windows. This defaults to 0.6.
+        P:
+    """
+
     def __init__(
         self,
         with_shift: bool = True,
@@ -21,11 +41,9 @@ class ASVCancellator:
         pos_neg_fit: bool = False,
         smooth_transitions: bool = True,
         use_weights: bool = False,
-        fit_min_max: bool = False,
         post_processing_threshold: Optional[float] = None,
         post_processing_type: str = "gaussian",
         fs: int = 500,
-        P: int = 40,
         M: int = 40,
         H: int = 50,
         front: int = 50,
@@ -38,9 +56,7 @@ class ASVCancellator:
         self.pos_neg_fit = pos_neg_fit
         self.smooth_transitions = smooth_transitions
         self.use_weights = use_weights
-        self.fit_min_max = fit_min_max
         self.fs = fs
-        self.P = int(P / 1000 * self.fs)
         self.M = int(M / 1000 * self.fs)
         self.H = int(H / 1000 * self.fs)
         self.post_processing_threshold = post_processing_threshold
@@ -100,17 +116,11 @@ class ASVCancellator:
             rr_windows, template, verbose=verbose, pos_neg_fit=self.pos_neg_fit, use_weights=self.use_weights
         )
 
-        # Fit min max
-        if self.fit_min_max:
-            template_fitted = self._fit_max(rr_windows, template_fitted)
-
         # fit transitions
-        aa_signal, starts_ends = self._subtract_template(windowed_signal=rr_windows, template=template_fitted, P=self.P)
+        aa_signal = self._subtract_template(windowed_signal=rr_windows, template=template_fitted)
 
         # Fit to original signal shape and smooth transitions
-        aa_signal_reconstructed = self._reconstruct(
-            aa_signal, signal_padded, r_peaks_shifted, front, back, starts_ends, M=self.M
-        )
+        aa_signal_reconstructed = self._reconstruct(aa_signal, signal_padded, r_peaks_shifted, front, back, M=self.M)
 
         if pad_front > 0:
             aa_signal_reconstructed = aa_signal_reconstructed[pad_front:]
@@ -391,66 +401,16 @@ class ASVCancellator:
 
         return templates_aligned
 
-    def _fit_max(
-        self,
-        windowed_signal: np.array,
-        template: np.array,
-    ) -> np.array:
-        template = template.copy()
-        n_leads, n_windows, window_size = windowed_signal.shape
-        for lead in range(n_leads):
-            for window in range(n_windows):
-                template_ = template[lead, window, :]
-                window_ = windowed_signal[lead, window, :]
-                # print(
-                #    f"Lead {lead + 1}, window {window + 1}:  diff {window_.max() - template_.max()}")
-                try:
-                    pos_ratio = window_[window_ >= 0].max() / template_[template_ >= 0].max()
-                    neg_ratio = window_[window_ < 0].min() / template_[template_ < 0].min()
-                except ValueError:
-                    pos_ratio = 1
-                    neg_ratio = 1
-
-                template_ = np.where(template_ >= 0, template_ * pos_ratio, template_ * neg_ratio)
-
-                # print(
-                #    f"Lead {lead + 1}, window {window + 1}:"
-                #    "ratios {pos_ratio} {neg_ratio}, diff {window_.max() - template_.max()}")
-                template[lead, window, :] = template_
-
-        return template
-
     def _subtract_template(
         self,
         windowed_signal: np.array,
         template: np.array,
-        P: int,
     ) -> np.array:
         template = template.copy()
-        n_leads, n_windows, window_size = windowed_signal.shape
 
         aa_signal = windowed_signal.copy()
-
-        starts_ends = np.zeros(shape=(n_leads, n_windows, 2), dtype="int")
-
-        for lead in range(n_leads):
-            for window in range(n_windows):
-                if P > 0:
-                    diff = np.abs(windowed_signal[lead, window, :] - template[lead, window, :])
-                    start = np.argmin(diff[:P])
-                    end = np.argmin(diff[-P:]) + window_size - P
-
-                    template[lead, window, :start] = template[lead, window, start]  # aa_signal[lead, window, :start]
-                    template[lead, window, end:] = (template[lead, window, end],)  # aa_signal[lead, window, end:]
-                else:
-                    start = 0
-                    end = window_size
-
-                aa_signal[lead, window, :] -= template[lead, window, :]
-
-                starts_ends[lead, window, :] = np.array([start, end])
-
-        return aa_signal, starts_ends
+        aa_signal -= template
+        return aa_signal
 
     def _reconstruct(
         self,
@@ -459,7 +419,6 @@ class ASVCancellator:
         r_peaks: np.array,
         front: int,
         back: int,
-        starts_ends: np.array,
         M: int,
     ) -> np.array:
         reconstructed_signal = original_signal.copy()
@@ -479,9 +438,9 @@ class ASVCancellator:
             reconstructed_signal[window_start:window_end, :] = aa_signal[:, window, :].T
 
         if last_window_end_idx < reconstructed_signal.shape[0]:
-            gap = reconstructed_signal[last_window_end_idx + 1 :, :]
+            gap = reconstructed_signal[last_window_end_idx:, :]
             gap -= self._linreg(data=gap)
-            reconstructed_signal[last_window_end_idx + 1 :, :] = gap
+            reconstructed_signal[last_window_end_idx:, :] = gap
 
         if self.smooth_transitions:
             for window, peak in enumerate(r_peaks):
@@ -653,7 +612,6 @@ if __name__ == "__main__":
     qrs_locs = detqrs3(data_centered[:, 0], fs)  # get_r_peaks(data_centered[:,0], fs)
     asvc = ASVCancellator(
         with_shift=True,
-        P=40,
         M=20,
         use_clustering=False,
         pos_neg_fit=False,

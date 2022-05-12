@@ -154,7 +154,6 @@ class AF(ArtificialSignal):
         x = x.reshape(-1, 1)
 
         theta = 2 * np.pi * self.f0 * x + self.df / self.ff * np.sin(2 * np.pi * self.ff * x)
-        theta = theta + self.df / self.ff * np.random.normal(0, 1, size=theta.shape)
         self._data = -1 * sum(self._amplitude(i) * np.sin(i * theta) for i in range(1, self.M + 1))
         return self._data
 
@@ -214,5 +213,5 @@ class Wavefront(ArtificialSignal):
 
 
 if __name__ == "__main__":
-    c = AF(sampling_rate=500, sec=10, noise_rate=10, **af_type_a)
+    c = AF(sampling_rate=100, sec=10, noise_rate=10, **af_type_a)
     c.show()

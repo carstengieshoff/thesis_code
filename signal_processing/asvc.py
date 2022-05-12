@@ -275,10 +275,7 @@ class ASVCancellator:
         windowed_signal: np.array,
         template: np.array,
     ) -> np.array:
-        template = template.copy()
-
-        aa_signal = windowed_signal.copy()
-        aa_signal -= template
+        aa_signal = windowed_signal - template
         return aa_signal
 
     def _reconstruct(

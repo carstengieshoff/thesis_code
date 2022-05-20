@@ -9,8 +9,8 @@ def split_signal(
     Args:
         signal: np.array of shape (signal_len, signal_dim) to be split into windows.
         r_peaks: np.array of inidces to base splitting on.
-        front: Number of datapoints before each peack to include in a window.
-        back: Number of datapoints after each peack to include in a window.
+        front: Number of data points before each peak to include in a window.
+        back: Number of data points after each peak to include in a window.
 
     Retruns:
         A windowed version of the data of shape (signal_dim, num_windows, window_size), where `window_size` = `front` +

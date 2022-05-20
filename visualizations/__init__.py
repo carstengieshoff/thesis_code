@@ -4,5 +4,6 @@ from visualizations.plot_filter import plot_filter
 from visualizations.plot_hist import plot_hist2d
 from visualizations.plot_rp import plot_rp
 from visualizations.plot_spectral_envelope import plot_spectral_envelope
+from visualizations.plotly_vis import plot_ecg_plotly
 
-__all__ = ["plot_hist2d", "plot_rp", "plot_fft", "plot_spectral_envelope", "plot_filter", "plot_ecg"]
+__all__ = ["plot_hist2d", "plot_rp", "plot_fft", "plot_spectral_envelope", "plot_filter", "plot_ecg", "plot_ecg_plotly"]

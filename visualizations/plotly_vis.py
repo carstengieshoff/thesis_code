@@ -14,6 +14,7 @@ def plot_ecg_plotly(
     H: int = 0,
     lw: float = 1.8,
     title: str = "QRST Cancellation",
+    show: bool = True,
 ) -> None:
     num_leads = original.shape[1]
 
@@ -68,6 +69,6 @@ def plot_ecg_plotly(
                 layer="below",
                 line_width=0,
             )
-
-    fig.update_layout(height=num_leads * 300, width=1000, title_text=title)
-    fig.show()
+    if show:
+        fig.update_layout(height=num_leads * 300, width=1000, title_text=title)
+        fig.show()

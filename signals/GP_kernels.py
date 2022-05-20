@@ -68,7 +68,7 @@ class RationalQuadratic(Kernel):
 
 
 class RationalPeriodic(Kernel):
-    def __int__(self, period: float = 4, sigma: float = 1.0, L: float = 1.0) -> None:
+    def __init__(self, period: float = 4, sigma: float = 1.0, L: float = 1.0) -> None:
 
         self.period = period
         self.sigma = sigma
@@ -76,4 +76,10 @@ class RationalPeriodic(Kernel):
 
     def generate(self, xa: np.array, xb: np.array) -> np.array:
         sq_norm = -2 * self.L ** (-2) * (np.sin(2 * np.pi * cdist(xa, xb, "minkowski", p=1) * self.period) ** 2)
+        # plt.imshow(np.sin(2 * np.pi * cdist(xa, xb, "minkowski", p=1) * self.period))
+        # plt.show()
+        # plt.imshow(np.sin(2 * np.pi * cdist(xa, xb, "minkowski", p=1) * self.period)**2)
+        # plt.show()
+        # plt.plot(np.sin(2 * np.pi * cdist(xa, xb, "minkowski", p=1) * self.period)[0,:])
+        # plt.show()
         return self.sigma * np.exp(sq_norm)

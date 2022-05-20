@@ -4,7 +4,9 @@ from typing import Any, Callable, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.signal import chirp
+from scipy.signal import cheby2, chirp, filtfilt
+
+from signals.GP_kernels import Kernel
 
 af_type_a = {
     "f0": 6.0,
@@ -104,6 +106,38 @@ class Sinusoid(ArtificialSignal):
 
     def show(self, *args: Any, **kwargs: Any) -> None:
         super().show(label=f"Freq: {self._frequency} Hz", *args, **kwargs)
+
+
+class GP(ArtificialSignal):
+    """Create Gaussian process"""
+
+    def __init__(
+        self, kernel: Kernel, hp_filter_freq: float = 0.5, lp_filter_freq: float = 100, *args: Any, **kwargs: Any
+    ):
+        super().__init__(*args, **kwargs)
+        self.kernel = kernel
+        self.hp_filter_freq = hp_filter_freq
+        self.lp_filter_freq = lp_filter_freq
+
+        X = np.expand_dims(self._x, 1)
+        sigma = self.kernel.generate(X, X)
+        U, S, V = np.linalg.svd(sigma, hermitian=True)
+        self._sq_sigma = U @ np.diag(np.sqrt(S))
+
+    @ArtificialSignal.add_noise
+    def generate(self, num_samples: int = 1) -> np.array:
+
+        f_x = np.random.standard_normal(size=(self._sec * self._sampling_rate, num_samples))
+        f_x = self._sq_sigma @ f_x
+
+        [b, a] = cheby2(3, 20, self.hp_filter_freq, btype="highpass", fs=self.sampling_rate)
+        f_x = filtfilt(b, a, f_x, axis=0)
+
+        [b, a] = cheby2(3, 20, self.lp_filter_freq, btype="lowpass", fs=self.sampling_rate)
+        f_x = filtfilt(b, a, f_x, axis=0)
+
+        self._data = f_x.reshape(-1, num_samples)
+        return self._data
 
 
 class Chirp(ArtificialSignal):
@@ -213,5 +247,4 @@ class Wavefront(ArtificialSignal):
 
 
 if __name__ == "__main__":
-    c = AF(sampling_rate=100, sec=10, noise_rate=10, **af_type_a)
-    c.show()
+    pass

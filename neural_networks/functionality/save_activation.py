@@ -33,5 +33,5 @@ def save_activation(
 
         for i in range(N):
             img_grid = make_grid(activation[i].reshape(-1, 1, H, W))
-            tag = global_name + layer_name + f"_{i}"
+            tag = global_name + layer_name + f"_{i+1}"
             writer.add_image(tag, img_grid)

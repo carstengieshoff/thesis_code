@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from scipy.fft import fftfreq
+from scipy.fft import rfftfreq
 
 from embeddings.utils import spectral_envelope
 
@@ -20,7 +20,7 @@ def plot_spectral_envelope(
 ) -> None:
     signal_len = x.shape[0]
 
-    xf = fftfreq(signal_len, 1 / Fs)[: signal_len // 2]
+    xf = rfftfreq(signal_len, 1 / Fs)[: signal_len // 2]
     freqs = spectral_envelope(x, h=h)
     max_idx = np.argmax(freqs[: signal_len // 2])
     max_freq = max_idx / signal_len * Fs
@@ -40,6 +40,8 @@ def plot_spectral_envelope(
     )
     ax.set_ylabel("Magnitude [dB]", fontsize="x-large")
     ax.set_xlabel("Frequency [Hz]", fontsize="x-large")
+    ax.set_xticks(ticks=list(range(int(xf.min()), int(xf.max()), 5)), minor=True)
+    ax.set_xticks(ticks=list(range(int(xf.min()), int(xf.max()), 10)), minor=False)
 
     if fig_and_ax_not_given:
         plt.show()
@@ -51,7 +53,7 @@ if __name__ == "__main__":
 
     from signals import Chirp, Sinusoid
 
-    FS = 200
+    FS = 100
     sec = 1
     sin1 = Sinusoid(frequency=5, sampling_rate=FS, sec=sec, noise_rate=0.1)
     sin2 = Sinusoid(frequency=2, sampling_rate=FS, sec=sec, noise_rate=0.2)
@@ -63,6 +65,6 @@ if __name__ == "__main__":
     sin3.generate()
     chirp.generate()
 
-    data = np.vstack([sin1.data.T, sin2.data.T, sin3.data.T]).T
+    data = np.vstack([sin1.data.T, sin2.data.T, sin3.data.T, chirp.data.T]).T
 
-    plot_spectral_envelope(data, Fs=200)
+    plot_spectral_envelope(data, Fs=FS, h=np.ones(3))

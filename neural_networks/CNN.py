@@ -131,7 +131,7 @@ class CNN(nn.Module):  # type: ignore
         cm = confusion_matrix(true_label, predicted_label)
         cm = pd.DataFrame(cm)
         fig = plt.figure(figsize=(10, 7))
-        sn.heatmap(cm, annot=True)
+        sn.heatmap(cm, annot=True, cmap="Blues")
         plt.xlabel("predicted")
         plt.ylabel("true")
         if self.writer is not None:

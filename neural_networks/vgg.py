@@ -23,7 +23,7 @@ class VGG(CNN):
         #  if isinstance(layer, nn.ReLU):
         #    an.features[i] = nn.ReLU(inplace=False)
 
-        num_ftrs = vgg.classifier[1].in_features
+        num_ftrs = vgg.classifier[0].in_features
         self.features = vgg.features
 
         self.avgpool = vgg.avgpool

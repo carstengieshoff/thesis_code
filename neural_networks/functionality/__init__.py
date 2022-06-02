@@ -1,3 +1,4 @@
+from neural_networks.functionality.count_parameters import count_parameters
 from neural_networks.functionality.get_activations import get_inp_activations, get_out_activations
 from neural_networks.functionality.get_opt_input_for_activation import get_opt_input_for_activation
 from neural_networks.functionality.plot_scatter_activations import plot_scatter
@@ -11,4 +12,5 @@ __all__ = [
     "get_inp_activations",
     "get_opt_input_for_activation",
     "plot_scatter",
+    "count_parameters",
 ]

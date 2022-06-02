@@ -29,12 +29,6 @@ class AlexNet(CNN):
         self.avgpool = alexnet.avgpool
         self.classifier = nn.Sequential(
             nn.Dropout(p=0.5),
-            nn.Linear(in_features=num_ftrs, out_features=100, bias=True),
-            nn.ReLU(),
-            nn.Linear(in_features=100, out_features=num_out, bias=True),
-        )
-        self.classifier = nn.Sequential(
-            nn.Dropout(p=0.5),
             nn.Linear(in_features=num_ftrs, out_features=4096, bias=True),
             nn.ReLU(),
             nn.Linear(in_features=4096, out_features=4096, bias=True),

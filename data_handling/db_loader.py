@@ -2,8 +2,6 @@ import logging
 import os
 from typing import List, Optional
 
-from google.colab import drive
-
 logging.basicConfig(level=logging.INFO)
 
 databases = [
@@ -27,7 +25,6 @@ def load_db(dbs: Optional[List[str]] = None, qrs_removed: bool = True, target_fi
         os.mkdir(target_file)
 
     if qrs_removed:
-        drive.mount("/content/drive")
         for db in dbs:
             logging.info(f"\n Getting {db}_noQrs")
             os.system(f"cp ./drive/MyDrive/thesis/data/{db}_noQrs.tar.gz {target_file}/{db}_noQrs.tar.gz")

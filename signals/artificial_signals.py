@@ -112,7 +112,12 @@ class GP(ArtificialSignal):
     """Create Gaussian process"""
 
     def __init__(
-        self, kernel: Kernel, hp_filter_freq: float = 0.5, lp_filter_freq: float = 100, *args: Any, **kwargs: Any
+        self,
+        kernel: Kernel,
+        hp_filter_freq: Optional[float] = None,
+        lp_filter_freq: Optional[float] = None,
+        *args: Any,
+        **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
         self.kernel = kernel
@@ -130,11 +135,13 @@ class GP(ArtificialSignal):
         f_x = np.random.standard_normal(size=(self._sec * self._sampling_rate, num_samples))
         f_x = self._sq_sigma @ f_x
 
-        [b, a] = cheby2(3, 20, self.hp_filter_freq, btype="highpass", fs=self.sampling_rate)
-        f_x = filtfilt(b, a, f_x, axis=0)
+        if self.hp_filter_freq is not None:
+            [b, a] = cheby2(3, 20, self.hp_filter_freq, btype="highpass", fs=self.sampling_rate)
+            f_x = filtfilt(b, a, f_x, axis=0)
 
-        [b, a] = cheby2(3, 20, self.lp_filter_freq, btype="lowpass", fs=self.sampling_rate)
-        f_x = filtfilt(b, a, f_x, axis=0)
+        if self.lp_filter_freq is not None:
+            [b, a] = cheby2(3, 20, self.lp_filter_freq, btype="lowpass", fs=self.sampling_rate)
+            f_x = filtfilt(b, a, f_x, axis=0)
 
         self._data = f_x.reshape(-1, num_samples)
         return self._data

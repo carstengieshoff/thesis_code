@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import cheby2, chirp, filtfilt, iirnotch
 
-from signals.GP_kernels import Kernel
+from signals.GP_kernels import AAKernel, Kernel
 
 af_type_a = {
     "f0": 6.0,
@@ -153,6 +153,28 @@ class GP(ArtificialSignal):
         return self._data
 
 
+class AAGP(GP):
+    def __init__(
+        self,
+        kernel_args: Dict[str, Any],
+        hp_filter_freq: float = 2.5,
+        notch_filter_freq: float = 50.0,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        freq = kernel_args.pop("freq")
+        kernel = AAKernel(**kernel_args)
+
+        super().__init__(
+            kernel,
+            hp_filter_freq,
+            freq,
+            notch_filter_freq,
+            *args,
+            **kwargs,
+        )
+
+
 class Chirp(ArtificialSignal):
     """Create Chirp"""
 
@@ -260,4 +282,10 @@ class Wavefront(ArtificialSignal):
 
 
 if __name__ == "__main__":
-    pass
+    from GP_kernels import organized_aa_args, unorganized_aa_args
+
+    aa = AAGP(organized_aa_args, sampling_rate=200, sec=4)
+    aa.show()
+
+    aa = AAGP(unorganized_aa_args, sampling_rate=200, sec=4)
+    aa.show()

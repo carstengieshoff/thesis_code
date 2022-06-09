@@ -16,6 +16,8 @@ def plot_spectral_envelope(
     ax: Optional[Axes] = None,
     fig: Optional[Figure] = None,
     title: bool = True,
+    alpha: Optional[float] = None,
+    color: Optional[str] = None,
     *args: Any,
     **kwargs: Any,
 ) -> None:
@@ -33,7 +35,7 @@ def plot_spectral_envelope(
     else:
         fig_and_ax_not_given = False
 
-    ax.plot(xf, 2.0 / signal_len * np.abs(freqs[: signal_len // 2]))
+    ax.plot(xf, 2.0 / signal_len * np.abs(freqs[: signal_len // 2]), alpha=alpha, color=color)
     ax.grid()
 
     if title:

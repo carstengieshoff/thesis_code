@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.signal import cheby2, chirp, filtfilt
+from scipy.signal import cheby2, chirp, filtfilt, iirnotch
 
-from signals.GP_kernels import Kernel
+from signals.GP_kernels import AAKernel, Kernel
 
 af_type_a = {
     "f0": 6.0,
@@ -116,6 +116,7 @@ class GP(ArtificialSignal):
         kernel: Kernel,
         hp_filter_freq: Optional[float] = None,
         lp_filter_freq: Optional[float] = None,
+        notch_filter_freq: Optional[float] = None,
         *args: Any,
         **kwargs: Any,
     ):
@@ -123,6 +124,7 @@ class GP(ArtificialSignal):
         self.kernel = kernel
         self.hp_filter_freq = hp_filter_freq
         self.lp_filter_freq = lp_filter_freq
+        self.notch_filter_freq = notch_filter_freq
 
         X = np.expand_dims(self._x, 1)
         sigma = self.kernel.generate(X, X)
@@ -140,11 +142,37 @@ class GP(ArtificialSignal):
             f_x = filtfilt(b, a, f_x, axis=0)
 
         if self.lp_filter_freq is not None:
-            [b, a] = cheby2(3, 20, self.lp_filter_freq, btype="lowpass", fs=self.sampling_rate)
+            [b, a] = cheby2(1, 10, self.lp_filter_freq, btype="lowpass", fs=self.sampling_rate)
+            f_x = filtfilt(b, a, f_x, axis=0)
+
+        if self.notch_filter_freq is not None:
+            [b, a] = iirnotch(fs=self.sampling_rate, w0=self.notch_filter_freq, Q=20)
             f_x = filtfilt(b, a, f_x, axis=0)
 
         self._data = f_x.reshape(-1, num_samples)
         return self._data
+
+
+class AAGP(GP):
+    def __init__(
+        self,
+        kernel_args: Dict[str, Any],
+        hp_filter_freq: float = 2.5,
+        notch_filter_freq: float = 50.0,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        freq = kernel_args.pop("freq")
+        kernel = AAKernel(**kernel_args)
+
+        super().__init__(
+            kernel,
+            hp_filter_freq,
+            freq,
+            notch_filter_freq,
+            *args,
+            **kwargs,
+        )
 
 
 class Chirp(ArtificialSignal):
@@ -165,7 +193,7 @@ class Chirp(ArtificialSignal):
         super().show(label=f"Freq: {self._frequency_start} Hz -> {self._frequency_end} Hz ", *args, **kwargs)
 
 
-class AF(ArtificialSignal):
+class AAStridh(ArtificialSignal):
     """Create simulated AF according to https://ieeexplore.ieee.org/document/900266."""
 
     def __init__(
@@ -254,4 +282,10 @@ class Wavefront(ArtificialSignal):
 
 
 if __name__ == "__main__":
-    pass
+    from GP_kernels import organized_aa_args, unorganized_aa_args
+
+    aa = AAGP(organized_aa_args, sampling_rate=200, sec=4)
+    aa.show()
+
+    aa = AAGP(unorganized_aa_args, sampling_rate=200, sec=4)
+    aa.show()

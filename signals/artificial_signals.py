@@ -4,7 +4,7 @@ from typing import Any, Callable, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.signal import cheby2, chirp, filtfilt
+from scipy.signal import cheby2, chirp, filtfilt, iirnotch
 
 from signals.GP_kernels import Kernel
 
@@ -116,6 +116,7 @@ class GP(ArtificialSignal):
         kernel: Kernel,
         hp_filter_freq: Optional[float] = None,
         lp_filter_freq: Optional[float] = None,
+        notch_filter_freq: Optional[float] = None,
         *args: Any,
         **kwargs: Any,
     ):
@@ -123,6 +124,7 @@ class GP(ArtificialSignal):
         self.kernel = kernel
         self.hp_filter_freq = hp_filter_freq
         self.lp_filter_freq = lp_filter_freq
+        self.notch_filter_freq = notch_filter_freq
 
         X = np.expand_dims(self._x, 1)
         sigma = self.kernel.generate(X, X)
@@ -141,6 +143,11 @@ class GP(ArtificialSignal):
 
         if self.lp_filter_freq is not None:
             [b, a] = cheby2(3, 20, self.lp_filter_freq, btype="lowpass", fs=self.sampling_rate)
+            [b, a] = cheby2(1, 10, self.lp_filter_freq, btype="lowpass", fs=self.sampling_rate)
+            f_x = filtfilt(b, a, f_x, axis=0)
+
+        if self.notch_filter_freq is not None:
+            [b, a] = iirnotch(fs=self.sampling_rate, w0=self.notch_filter_freq, Q=20)
             f_x = filtfilt(b, a, f_x, axis=0)
 
         self._data = f_x.reshape(-1, num_samples)
@@ -165,7 +172,7 @@ class Chirp(ArtificialSignal):
         super().show(label=f"Freq: {self._frequency_start} Hz -> {self._frequency_end} Hz ", *args, **kwargs)
 
 
-class AF(ArtificialSignal):
+class AFStridh(ArtificialSignal):
     """Create simulated AF according to https://ieeexplore.ieee.org/document/900266."""
 
     def __init__(

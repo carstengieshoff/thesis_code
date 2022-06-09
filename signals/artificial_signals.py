@@ -142,7 +142,6 @@ class GP(ArtificialSignal):
             f_x = filtfilt(b, a, f_x, axis=0)
 
         if self.lp_filter_freq is not None:
-            [b, a] = cheby2(3, 20, self.lp_filter_freq, btype="lowpass", fs=self.sampling_rate)
             [b, a] = cheby2(1, 10, self.lp_filter_freq, btype="lowpass", fs=self.sampling_rate)
             f_x = filtfilt(b, a, f_x, axis=0)
 
@@ -172,7 +171,7 @@ class Chirp(ArtificialSignal):
         super().show(label=f"Freq: {self._frequency_start} Hz -> {self._frequency_end} Hz ", *args, **kwargs)
 
 
-class AFStridh(ArtificialSignal):
+class AAStridh(ArtificialSignal):
     """Create simulated AF according to https://ieeexplore.ieee.org/document/900266."""
 
     def __init__(

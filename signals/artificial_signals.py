@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from functools import wraps
 from typing import Any, Callable, Dict, Optional, Tuple
 
@@ -162,6 +163,8 @@ class AAGP(GP):
         *args: Any,
         **kwargs: Any,
     ):
+        kernel_args = deepcopy(kernel_args)
+
         freq = kernel_args.pop("freq")
         kernel = AAKernel(**kernel_args)
 

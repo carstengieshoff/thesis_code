@@ -208,16 +208,18 @@ if __name__ == "__main__":
     from embeddings.lag_emebedding import LagEmbedding
     # from embeddings.utils.fnn import fnn
     # from embeddings.utils.mutual_information import mutual_information
-    from signals.artificial_signals import Chirp
+    from signals.artificial_signals import AAGP
+    from signals.GP_kernels import organized_aa_args
 
-    s = Chirp(frequency_start=1, frequency_end=40, sampling_rate=1000, sec=2, noise_rate=0)
+    s = AAGP(organized_aa_args, sampling_rate=200, sec=4)
+
     signal = s.generate()
     # s.show()
 
     # lag = mutual_information(signal=signal)
     # dim = fnn(signal=signal, lag=lag)
     embedding = LagEmbedding(dim=1, lag=1)
-    calculator = RecurrencePlotCalculator(embedding=embedding, metric="cosine")
+    calculator = RecurrencePlotCalculator(embedding=embedding, metric="euclidean")
     # print(calculator)
 
     start = time.time()
@@ -226,7 +228,7 @@ if __name__ == "__main__":
         rp.get_rp(threshold="relative", epsilon=0.2)
     end = time.time()
     print("Elapsed = %s" % (end - start))
-
+    rp.show()
     # fig = plt.figure(figsize=(15, 8))
 #
 # ax = plt.subplot(212)

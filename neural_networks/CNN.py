@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.optim as optim
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix
+from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
@@ -31,6 +32,7 @@ class CNN(nn.Module):  # type: ignore
         optimizer: optim.Optimizer,
         criterion: nn.Module,
         device: torch.device,
+        scheduler: Optional[lr_scheduler.StepLR] = None,
         show_every_n: int = 100,
         plot_loss: bool = False,
         *args: Any,
@@ -73,10 +75,14 @@ class CNN(nn.Module):  # type: ignore
                                 {"training loss": self.train_loss[-1], "validation acc": self.val_loss[-1]},
                                 epoch * n_total_steps + i,
                             )
+                            print(f"Writing Step {epoch * n_total_steps + i}")
                         else:
                             self.writer.add_scalar("training loss", self.train_loss[-1], epoch * n_total_steps + i)
 
                     running_loss = []
+
+            if scheduler is not None:
+                scheduler.step()
 
         if plot_loss:
             self.plot_loss(*args, **kwargs)

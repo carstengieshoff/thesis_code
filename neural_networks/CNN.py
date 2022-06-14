@@ -70,14 +70,19 @@ class CNN(nn.Module):  # type: ignore
                     if self.writer is not None:
                         if validationloader:
                             self.val_loss.append(self.evaluate_nn(validationloader, device=device))
-                            self.writer.add_scalars(
-                                "Training",
-                                {"training loss": self.train_loss[-1], "validation acc": self.val_loss[-1]},
+                            self.writer.add_scalar(
+                                "trainloss",
+                                self.train_loss[-1],
                                 epoch * n_total_steps + i,
                             )
-                            print(f"Writing Step {epoch * n_total_steps + i}")
+                            self.writer.add_scalar(
+                                "valacc",
+                                self.val_loss[-1],
+                                epoch * n_total_steps + i,
+                            )
+                            # print(f"Writing Step {epoch * n_total_steps + i}")
                         else:
-                            self.writer.add_scalar("training loss", self.train_loss[-1], epoch * n_total_steps + i)
+                            self.writer.add_scalar("trainloss", self.train_loss[-1], epoch * n_total_steps + i)
 
                     running_loss = []
 

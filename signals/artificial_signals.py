@@ -151,6 +151,7 @@ class GP(ArtificialSignal):
             f_x = filtfilt(b, a, f_x, axis=0)
 
         self._data = f_x.reshape(-1, num_samples)
+        self._data = self._data / self._data.std(axis=0, keepdims=True)
         return self._data
 
 

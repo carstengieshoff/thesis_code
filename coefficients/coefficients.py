@@ -165,12 +165,13 @@ def get_fibrillation(
     )  # dims, num_windows_ window_length
 
     num_windows = windowed_signal.shape[1]
+    window_length = windowed_signal.shape[2]
 
     dafs = []
     for s in range(num_windows):
         se = spectral_envelope(signal=windowed_signal[:, s, :].T, h=h)
         max_idx = np.argmax(se)
-        max_freq = max_idx / n * Fs
+        max_freq = max_idx / window_length * Fs
 
         dafs.append(max_freq)
 

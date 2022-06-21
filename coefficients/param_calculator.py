@@ -93,7 +93,10 @@ class ParamCalculator:
         n, dims = x.shape
 
         windowed_signal = split_signal(
-            signal=x, r_peaks=np.arange(0, n, start_interval_every * Fs), front=0, back=int(interval_length * Fs - 1)
+            signal=x,
+            r_peaks=np.arange(0, n, int(start_interval_every * Fs)),
+            front=0,
+            back=int(interval_length * Fs - 1),
         )  # dims, num_windows_ window_length
 
         num_windows = windowed_signal.shape[1]
@@ -160,7 +163,7 @@ if __name__ == "__main__":
     from signals.GP_kernels import organized_aa_args, unorganized_aa_args
 
     Fs = 200
-    aa = AAGP(unorganized_aa_args, sec=20, sampling_rate=Fs)
+    aa = AAGP(organized_aa_args, sec=10, sampling_rate=Fs)
 
     aa.generate(num_samples=1)
 
@@ -170,10 +173,10 @@ if __name__ == "__main__":
 
     print(params)
 
-    aa = AAGP(organized_aa_args, sec=20, sampling_rate=Fs)
+    aa = AAGP(organized_aa_args, sec=10, sampling_rate=400)
     aa.generate(num_samples=1)
 
-    params = calculator.get_params(signal=aa.data, Fs=Fs, h=np.ones(5))
+    params = calculator.get_params(signal=aa.data, Fs=400, h=np.ones(5))
 
     print(params)
 

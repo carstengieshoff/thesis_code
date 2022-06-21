@@ -3,8 +3,6 @@ from collections import namedtuple
 from pathlib import Path
 from typing import List, Union
 
-import pyrqa
-
 DataPoint = namedtuple("DataPoint", "x y")
 
 

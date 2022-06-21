@@ -74,7 +74,9 @@ def get_NMSE(signal: np.array, Fs: int, lead: int = 1, k: Optional[int] = None) 
     return np.array(NMSEs).mean(dtype="float32")
 
 
-def get_MOI(signal: np.array, Fs: int, h: Optional[np.array] = None) -> float:
+def get_MOI(
+    signal: np.array, Fs: int, h: Optional[np.array] = None, start_interval_every: int = 5, interval_length: int = 10
+) -> float:
     """Implementing MOI from [Uldry, 2012].
 
     Args:
@@ -84,7 +86,7 @@ def get_MOI(signal: np.array, Fs: int, h: Optional[np.array] = None) -> float:
     n, dims = signal.shape
 
     windowed_signal = split_signal(
-        signal=signal, r_peaks=np.arange(0, n, 5 * Fs), front=0, back=10 * Fs - 1
+        signal=signal, r_peaks=np.arange(0, n, start_interval_every * Fs), front=0, back=interval_length * Fs - 1
     )  # dims, num_windows_ window_length
 
     num_windows = windowed_signal.shape[1]
@@ -113,7 +115,9 @@ def get_MOI(signal: np.array, Fs: int, h: Optional[np.array] = None) -> float:
     return area_under_peaks
 
 
-def get_MSE(signal: np.array, Fs: int, h: Optional[np.array] = None) -> float:
+def get_MSE(
+    signal: np.array, Fs: int, h: Optional[np.array] = None, start_interval_every: int = 5, interval_length: int = 10
+) -> float:
     """Implementing MOI from [Uldry, 2012].
 
     Args:
@@ -123,7 +127,7 @@ def get_MSE(signal: np.array, Fs: int, h: Optional[np.array] = None) -> float:
     n, dims = signal.shape
 
     windowed_signal = split_signal(
-        signal=signal, r_peaks=np.arange(0, n, 5 * Fs), front=0, back=10 * Fs - 1
+        signal=signal, r_peaks=np.arange(0, n, start_interval_every * Fs), front=0, back=interval_length * Fs - 1
     )  # dims, num_windows_ window_length
 
     num_windows = windowed_signal.shape[1]
@@ -138,6 +142,58 @@ def get_MSE(signal: np.array, Fs: int, h: Optional[np.array] = None) -> float:
     ses = ses / ses.sum()
 
     return entropy(pk=ses)
+
+
+def get_fibrillation(
+    signal: np.array,
+    Fs: int,
+    h: Optional[np.array] = None,
+    start_interval_every: float = 1,
+    interval_length: float = 2.5,
+    aggregate: str = "mean",
+) -> float:
+    """Implementing fibriallation from [Bollmann, 2008].
+
+    Args:
+        signal: Signal to analyse
+        Fs: sampling rate
+    """
+    n, dims = signal.shape
+
+    windowed_signal = split_signal(
+        signal=signal, r_peaks=np.arange(0, n, start_interval_every * Fs), front=0, back=int(interval_length * Fs - 1)
+    )  # dims, num_windows_ window_length
+
+    num_windows = windowed_signal.shape[1]
+
+    dafs = []
+    for s in range(num_windows):
+        se = spectral_envelope(signal=windowed_signal[:, s, :].T, h=h)
+        max_idx = np.argmax(se)
+        max_freq = max_idx / n * Fs
+
+        dafs.append(max_freq)
+
+    if aggregate == "mean":
+        return np.mean(dafs)  # , np.std(dafs)
+    elif aggregate == "std":
+        return np.std(dafs)  # , np.std(dafs)
+    else:
+        raise RuntimeError("Unknown arg")
+
+
+def get_fwavepower(signal: np.array, Fs=None) -> float:
+    """Implementing f-wavepower from [Alcaraz, 2008].
+
+    Args:
+        signal: Signal to analyse
+        Fs: sampling rate
+    """
+    n, dims = signal.shape
+
+    power_per_lead = np.power(signal, 2).mean(axis=0)
+
+    return power_per_lead.mean()
 
 
 if __name__ == "__main__":

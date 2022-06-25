@@ -108,7 +108,7 @@ class CNN(nn.Module):  # type: ignore
                 total += labels.size(0)
                 correct += (predicted == labels.to(device)).sum().item()
 
-        return 100 * correct // total
+        return 100 * correct / total
 
     def plot_loss(self, *args: Any, **kwargs: Any) -> None:
 

@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,25 +10,28 @@ from pyrqa.neighbourhood import FixedRadius, Unthresholded
 from pyrqa.settings import Settings
 from pyrqa.time_series import TimeSeries
 
-param_names = ["Minimum diagonal line length (L_min)",
-                "Minimum vertical line length (V_min)",
-                "Minimum white vertical line length (W_min)",
-                "Recurrence rate (RR)",
-                "Determinism (DET)",
-                "Average diagonal line length (L)",
-                "Longest diagonal line length (L_max)",
-                "Divergence (DIV)",
-                "Entropy diagonal lines (L_entr)",
-                "Laminarity (LAM)",
-                "Trapping time (TT)",
-                "Longest vertical line length (V_max)",
-                "Entropy vertical lines (V_entr)",
-                "Average white vertical line length (W)",
-                "Longest white vertical line length (W_max)",
-                "Longest white vertical line length inverse (W_div)",
-                "Entropy white vertical lines (W_entr)",
-                "Ratio determinism / recurrence rate (DET/RR)",
-                "Ratio laminarity / determinism (LAM/DET)"]
+param_names = [
+    "Minimum diagonal line length (L_min)",
+    "Minimum vertical line length (V_min)",
+    "Minimum white vertical line length (W_min)",
+    "Recurrence rate (RR)",
+    "Determinism (DET)",
+    "Average diagonal line length (L)",
+    "Longest diagonal line length (L_max)",
+    "Divergence (DIV)",
+    "Entropy diagonal lines (L_entr)",
+    "Laminarity (LAM)",
+    "Trapping time (TT)",
+    "Longest vertical line length (V_max)",
+    "Entropy vertical lines (V_entr)",
+    "Average white vertical line length (W)",
+    "Longest white vertical line length (W_max)",
+    "Longest white vertical line length inverse (W_div)",
+    "Entropy white vertical lines (W_entr)",
+    "Ratio determinism / recurrence rate (DET/RR)",
+    "Ratio laminarity / determinism (LAM/DET)",
+]
+
 
 class RQAGenerator:
     """Wrapper for pyrqa: https://pypi.org/project/PyRQA/."""
@@ -38,7 +41,7 @@ class RQAGenerator:
         min_diagonal_line_length: int = 2,
         min_vertical_line_length: int = 2,
         min_white_vertical_line_length: int = 2,
-        params: Optional[List[str]] = None
+        params: Optional[List[str]] = None,
     ) -> None:
         self.min_diagonal_line_length = min_diagonal_line_length
         self.min_vertical_line_length = min_vertical_line_length
@@ -108,6 +111,10 @@ class RQAGenerator:
         else:
             return np.array(list(result_dict[key] for key in self.params))
 
+    @property
+    def available_params(self) -> List[str]:
+        return param_names
+
 
 if __name__ == "__main__":
     from signals import AAGP
@@ -118,6 +125,10 @@ if __name__ == "__main__":
     aa.generate(num_samples=1)
     aa.show()
 
-    generator = RQAGenerator(params=["Determinism (DET)",
-                "Average diagonal line length (L)",])
+    generator = RQAGenerator(
+        params=[
+            "Determinism (DET)",
+            "Average diagonal line length (L)",
+        ]
+    )
     print(generator.generate(aa.data, plot_rp=True))

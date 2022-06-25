@@ -20,14 +20,14 @@ class RPCombi(nn.Module):  # type: ignore
             in_channels=self.in_channels,
             out_channels=self.intermediate_channels,
             kernel_size=self.kernel_size,
-            padding_mode="same",
+            padding="same",
         )
 
         self._1by1conv = nn.Conv2d(
             in_channels=self.intermediate_channels,
             out_channels=self.out_channels,
             kernel_size=1,
-            padding_mode="same",
+            padding="same",
         )
 
         self.activation1 = nn.ReLU()

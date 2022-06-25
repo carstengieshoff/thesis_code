@@ -14,10 +14,18 @@ def squeeze_weights(m: nn.Module) -> None:
 
 
 class AlexNet(CNN):
-    def __init__(self, num_out: int, writer: Optional[SummaryWriter] = None, pretrained: bool = True):
+    def __init__(
+        self, num_out: int, writer: Optional[SummaryWriter] = None, pretrained: bool = True, in_channels: int = 1
+    ):
         super().__init__(writer)
         alexnet = torchvision.models.alexnet(pretrained=pretrained)
-        alexnet.features[0].apply(squeeze_weights)
+
+        if in_channels == 1:
+            alexnet.features[0].apply(squeeze_weights)
+        elif in_channels == 3:
+            pass
+        else:
+            raise ValueError(f"`in_channels` must be one of 1, 3 but got {in_channels}")
 
         # for i, layer in enumerate(an.features):
         #  if isinstance(layer, nn.ReLU):

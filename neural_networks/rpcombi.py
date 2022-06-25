@@ -30,9 +30,12 @@ class RPCombi(nn.Module):  # type: ignore
         self.activation1 = nn.ReLU()
         self.activation2 = nn.ReLU()
 
+        self.bn1 = nn.BatchNorm2d(intermediate_channels)
+
     def forward(self, x: torch.tensor) -> torch.tensor:
         x = self._thresh_layer(x)
         x = self.activation1(x)
+        x = self.bn1(x)
         x = self._1by1conv(x)
         x = self.activation2(x)
         return x

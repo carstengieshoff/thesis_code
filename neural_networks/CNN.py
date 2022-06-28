@@ -35,6 +35,7 @@ class CNN(nn.Module):  # type: ignore
         scheduler: Optional[lr_scheduler.StepLR] = None,
         show_every_n: int = 100,
         plot_loss: bool = False,
+        save_path: Optional[str] = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -80,7 +81,13 @@ class CNN(nn.Module):  # type: ignore
                                 self.val_loss[-1],
                                 epoch * n_total_steps + i,
                             )
-                            # print(f"Writing Step {epoch * n_total_steps + i}")
+                            if save_path:
+                                if (
+                                    len(self.val_loss) == 1
+                                    or len(self.val_loss) > 1
+                                    and self.val_loss[-1] == max(self.val_loss)
+                                ):
+                                    torch.save(self.state_dict(), save_path)
                         else:
                             self.writer.add_scalar("trainloss", self.train_loss[-1], epoch * n_total_steps + i)
 
@@ -88,6 +95,9 @@ class CNN(nn.Module):  # type: ignore
 
             if scheduler is not None:
                 scheduler.step()
+
+        if save_path:
+            self.load_state_dict(torch.load(save_path, map_location=torch.device(device)))
 
         if plot_loss:
             self.plot_loss(*args, **kwargs)

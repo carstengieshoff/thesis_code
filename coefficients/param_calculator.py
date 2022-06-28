@@ -165,7 +165,7 @@ if __name__ == "__main__":
     Fs = 200
     aa = AAGP(organized_aa_args, sec=10, sampling_rate=Fs)
 
-    aa.generate(num_samples=1)
+    aa.generate(num_samples=2)
 
     calculator = ParamCalculator(leads=slice(0, 4), lead=0)
 
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     print(params)
 
     aa = AAGP(organized_aa_args, sec=10, sampling_rate=400)
-    aa.generate(num_samples=1)
+    aa.generate(num_samples=2)
 
     params = calculator.get_params(signal=aa.data, Fs=400, h=np.ones(5))
 

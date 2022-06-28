@@ -87,6 +87,8 @@ class CNN(nn.Module):  # type: ignore
                                     or len(self.val_loss) > 1
                                     and self.val_loss[-1] == max(self.val_loss)
                                 ):
+                                    print(f"Saving model at epoch {epoch, i}")
+                                    save_point = (epoch, i)
                                     torch.save(self.state_dict(), save_path)
                         else:
                             self.writer.add_scalar("trainloss", self.train_loss[-1], epoch * n_total_steps + i)
@@ -97,6 +99,7 @@ class CNN(nn.Module):  # type: ignore
                 scheduler.step()
 
         if save_path:
+            print(f"loading model from epoch {save_point}")
             self.load_state_dict(torch.load(save_path, map_location=torch.device(device)))
 
         if plot_loss:

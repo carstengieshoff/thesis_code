@@ -98,7 +98,8 @@ class CNN(nn.Module):  # type: ignore
             if scheduler is not None:
                 scheduler.step()
 
-        if save_path and validationloader :
+        self.writer.add_scalar("train_acc_final", self.evaluate_nn(trainloader, device=device))
+        if save_path and validationloader:
             print(f"loading model from epoch {save_point}")
             self.load_state_dict(torch.load(save_path, map_location=torch.device(device)))
 
